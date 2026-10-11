@@ -6,6 +6,7 @@ import Agents from "./pages/Agents";
 import Analytics from "./pages/Analytics";
 import CommandCenter from "./pages/CommandCenter";
 import Coms from "./pages/Coms";
+import Learning from "./pages/Learning";
 import News from "./pages/News";
 import Shoes from "./pages/Shoes";
 import Sports from "./pages/Sports";
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/shoes" element={<Shoes />} />
         <Route path="/automations" element={<Automations />} />
         <Route path="/knowledge/*" element={<SecondBrain />} />
+        <Route path="/learning" element={<Learning />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/second-brain" element={<RedirectKeepSearch to="/knowledge" />} />
         <Route path="/analytics" element={<RedirectKeepSearch to="/github" />} />

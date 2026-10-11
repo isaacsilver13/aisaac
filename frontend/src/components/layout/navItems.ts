@@ -21,5 +21,6 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/shoes", label: "Shoes", icon: Shop },
   { to: "/automations", label: "Automations", icon: Timer },
   { to: "/knowledge", label: "Knowledge", icon: Brain },
+  { to: "/learning", label: "Daily learning", icon: Book },
   { to: "/settings", label: "Settings", icon: Settings },
 ];

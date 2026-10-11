@@ -358,3 +358,29 @@ export interface OwnResponse {
   items: OwnItem[];
   connections: Connection[];
 }
+
+export interface LearningQuestion {
+  kind: "cloze" | "relation";
+  prompt: string;
+  answer: string;
+  path?: string;
+}
+
+export interface LearningExercise {
+  kind: "match" | "explain" | "investigate" | "reflect";
+  prompt: string;
+  pairs?: { path: string; term: string; definition: string }[];
+  options?: string[];
+}
+
+export interface LearningModule {
+  date: string;
+  path: string;
+  title: string;
+  portal: string;
+  link_map: Record<string, string | null>;
+  reading: { heading: string; markdown: string }[];
+  questions: LearningQuestion[];
+  exercises: LearningExercise[];
+  completed_at: string | null;
+}

@@ -1,4 +1,4 @@
-import type { NewShoeWatch, OwnResponse, NewsResponse, ShoesResponse, SportsResponse, NewsState, AutomationStatus, ConfigItem, MetricsHistory, AppLogs, Deployments, HealthHistory, HistoryRange, AgentSummary, CIEvent, DashboardResponse, FinancialSnapshot, Incident, Note, NoteListItem, Portal, RepoActivity, SecondBrainSummary, VaultGraph } from "./types";
+import type { NewShoeWatch, OwnResponse, NewsResponse, ShoesResponse, SportsResponse, NewsState, AutomationStatus, ConfigItem, MetricsHistory, AppLogs, Deployments, HealthHistory, HistoryRange, LearningModule, AgentSummary, CIEvent, DashboardResponse, FinancialSnapshot, Incident, Note, NoteListItem, Portal, RepoActivity, SecondBrainSummary, VaultGraph } from "./types";
 import { readToken, readWriteToken } from "./token";
 
 export class FinancialsAuthError extends Error {}
@@ -167,6 +167,26 @@ export async function fetchMetricsHistory(appId: string, range: HistoryRange): P
 export const fetchPortals = (token: string) => secondBrainGet<Portal[]>("portals", token);
 
 export const fetchGraph = (token: string) => secondBrainGet<VaultGraph>("graph", token);
+
+export async function fetchLearningModule(token: string, day = ""): Promise<LearningModule> {
+  const response = await fetch(`/api/v1/learning/module${day ? `?day=${encodeURIComponent(day)}` : ""}`, {
+    headers: { Accept: "application/json", "X-Dashboard-Token": token },
+  });
+  if (response.status === 401) throw new FinancialsAuthError("Invalid dashboard token.");
+  if (response.status === 404) throw new Error("No study notes synced yet. Run scripts/second_brain_push.py.");
+  if (!response.ok) throw new Error(`Learning request failed with HTTP ${response.status}.`);
+  return (await response.json()) as LearningModule;
+}
+
+export async function completeLearningModule(day: string, path: string, writeToken = readWriteToken()): Promise<string> {
+  const response = await fetch("/api/v1/learning/progress", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Dashboard-Write-Token": writeToken },
+    body: JSON.stringify({ day, path }),
+  });
+  if (!response.ok) throw new Error(`Saving progress failed with HTTP ${response.status}.`);
+  return ((await response.json()) as { completed_at: string }).completed_at;
+}
 
 const STALE_NEWS_MS = 60 * 60 * 1000;
 
