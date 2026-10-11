@@ -190,6 +190,17 @@ def test_keywords_match_whole_words_and_digest_caps_per_topic():
     assert len(personal_digest.pick_items()) == personal_digest.PER_TOPIC
 
 
+def test_read_items_leave_the_digest_and_lead_story_renders():
+    personal_news.refresh(lambda _: RSS, NOW)
+    items = personal_store.list_items()
+    r = _request("POST", f"/api/v1/personal/news/{items[0]['id']}/state", json={"state": "read"},
+                 headers={"X-Dashboard-Write-Token": "write"})
+    assert r.status_code == 204
+    assert items[0]["id"] not in {i["id"] for i in personal_digest.pick_items()}
+    _, text, html = personal_digest.render(items, None, NOW)
+    assert "Lead story" in text and 'class="d-card"' in html and "prefers-color-scheme" in html
+
+
 def test_utf16_doctype_rejected():
     doc = '<!DOCTYPE x [<!ENTITY a "b">]><rss version="2.0"/>'.encode("utf-16")
     with pytest.raises(ValueError):

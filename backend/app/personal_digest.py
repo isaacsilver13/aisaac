@@ -27,8 +27,14 @@ def local_date(now: datetime) -> str:
 
 
 def _fmt(value: str) -> str:
-    local = datetime.fromisoformat(value).astimezone(TZ)
-    return local.strftime("%a %b %d %I:%M %p").replace(" 0", " ")
+    return datetime.fromisoformat(value).astimezone(TZ).strftime("%Y/%m/%d %H:%M:%S")
+
+
+def _age(value: Optional[str], now: datetime) -> str:
+    if not value:
+        return ""
+    hours = max((now - datetime.fromisoformat(value)).total_seconds() / 3600, 0)
+    return f"{int(hours)}h ago" if hours < 48 else f"{round(hours / 24)}d ago"
 
 
 def _game_line(g: dict) -> str:
@@ -47,45 +53,157 @@ def _shoe_line(x: dict) -> str:
     return f"{x['title']} - {price}{was}"
 
 
-def _section(title: str, rows: list[tuple[str, str]]) -> tuple[list[str], str]:
-    """(plaintext lines, html) for a list of (label, url) rows."""
-    lines = ["", title] + [f"- {label}\n  {url}" for label, url in rows]
-    items = "".join(
-        f'<li><a href="{html.escape(url, quote=True)}">{html.escape(label)}</a></li>'
-        for label, url in rows
+# Email HTML: tables + inline styles only, so Gmail/Outlook render it. Inline colours are the
+# light theme; the <style> block swaps in the dashboard's dark tokens where the client honours
+# prefers-color-scheme (Apple Mail, iOS, Outlook.com). Gmail apps apply their own dark inversion.
+_FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
+BG, CARD, LINE = "#f4f4f5", "#ffffff", "#e4e4e7"
+INK, MUTED, ACCENT = "#18181b", "#71717a", "#2563eb"
+_DARK_CSS = (
+    ":root{color-scheme:light dark}"
+    "@media (prefers-color-scheme: dark){"
+    ".d-bg{background:#09090b!important}"
+    ".d-card{background:#141416!important;border-color:#27272a!important}"
+    ".d-rule{border-color:#27272a!important}"
+    ".d-ink{color:#fafafa!important}.d-muted{color:#a1a1aa!important}"
+    ".d-accent{color:#818cf8!important}}"
+)
+_TABLE = 'role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"'
+
+
+def _e(value: object) -> str:
+    return html.escape(str(value), quote=True)
+
+
+def _eyebrow(text: str, accent: bool = False) -> str:
+    color, cls = (ACCENT, "d-accent") if accent else (MUTED, "d-muted")
+    return (
+        f'<div class="{cls}" style="color:{color};font-size:11px;font-weight:600;'
+        f'letter-spacing:0.08em;text-transform:uppercase">{_e(text)}</div>'
     )
-    return lines, f"<h3>{html.escape(title)}</h3><ul>{items}</ul>"
+
+
+def _link(label: str, url: str, size: int = 15) -> str:
+    return (
+        f'<a class="d-ink" href="{_e(url)}" style="color:{INK};font-size:{size}px;'
+        f'font-weight:600;line-height:1.35;text-decoration:none">{_e(label)}</a>'
+    )
+
+
+def _meta(text: str) -> str:
+    style = f"color:{MUTED};font-size:13px;margin-top:4px"
+    return f'<div class="d-muted" style="{style}">{_e(text)}</div>'
+
+
+def _card(inner: str) -> str:
+    return (
+        f'<tr><td style="padding:0 0 16px"><table {_TABLE} class="d-card" '
+        f'style="background:{CARD};border:1px solid {LINE};border-radius:8px">'
+        f'<tr><td style="padding:20px 24px">{inner}</td></tr></table></td></tr>'
+    )
+
+
+def _list_card(title: str, rows: list[str]) -> str:
+    """A titled card of rows separated by hairlines."""
+    cells = []
+    for i, row in enumerate(rows):
+        border = f"border-top:1px solid {LINE};" if i else ""
+        bottom = 0 if i == len(rows) - 1 else 12
+        style = f"{border}padding:12px 0 {bottom}px"
+        cells.append(f'<tr><td class="d-rule" style="{style}">{row}</td></tr>')
+    return _card(_eyebrow(title, accent=True) + f'<table {_TABLE}>{"".join(cells)}</table>')
+
+
+def _item_meta(item: dict, now: datetime) -> str:
+    return " · ".join(x for x in (item["source"], _age(item.get("published_at"), now)) if x)
 
 
 def render(
     items: list[dict], freshness: Optional[str], now: datetime,
     games: Optional[list[dict]] = None, shoes: Optional[list[dict]] = None,
 ) -> tuple[str, str, str]:
-    """Return (subject, plaintext, html). Pure: no I/O."""
-    day = now.astimezone(TZ).strftime("%a %b %d").replace(" 0", " ")
-    subject = f"AIsaac digest — {day}"
+    """Return (subject, plaintext, html). Pure: no I/O.
+
+    Editorial layout: the first pick (saved first, then top score) is the lead story,
+    then games and shoe changes, then the remaining picks grouped by topic.
+    """
+    local = now.astimezone(TZ)
+    subject = f"AIsaac digest — {local:%a %Y/%m/%d}"
     fresh = (
-        f"News as of {datetime.fromisoformat(freshness).astimezone(TZ):%b %d %I:%M %p %Z}"
+        f"News as of {_fmt(freshness)} {datetime.fromisoformat(freshness).astimezone(TZ):%Z}"
         if freshness else "News freshness unknown (no successful refresh yet)"
     )
-    lines, parts = [subject], [f"<h2>{html.escape(subject)}</h2>"]
-    sections = [
-        ("Games", [(_game_line(g), g["url"]) for g in games or []]),
-        ("Shoe watches", [(_shoe_line(x), x["url"]) for x in shoes or []]),
-        ("Reading picks", [(f"[{i['topic']}] {i['title']} ({i['source']})", i["url"])
-                           for i in items]),
-    ]
-    for title, rows in sections:
-        if rows:
-            more_lines, more_html = _section(title, rows)
-            lines += more_lines
-            parts.append(more_html)
+    games, shoes = games or [], shoes or []
+    lead, rest = (items[0], items[1:]) if items else (None, [])
+    by_topic: dict[str, list[dict]] = {}
+    for item in rest:
+        by_topic.setdefault(item["topic"], []).append(item)
+
+    lines, cards = [subject], []
+
+    def section(title: str, text_rows: list[tuple[str, str]], card: str) -> None:
+        if text_rows:
+            lines.extend(["", title] + [f"- {label}\n  {url}" for label, url in text_rows])
+            cards.append(card)
+
+    if lead:
+        section(
+            f"Lead story [{lead['topic']}]",
+            [(f"{lead['title']} ({lead['source']})", lead["url"])],
+            _card(
+                _eyebrow(f"Lead story · {lead['topic']}", accent=True)
+                + f'<div style="margin-top:8px">{_link(lead["title"], lead["url"], 22)}</div>'
+                + _meta(_item_meta(lead, now))
+                + (_meta(lead["why"]) if lead.get("why") else "")
+            ),
+        )
+    section("Games", [(_game_line(g), g["url"]) for g in games],
+            _list_card("Games", [_link(_game_line(g), g["url"]) for g in games]))
+    section("Shoe watches", [(_shoe_line(x), x["url"]) for x in shoes],
+            _list_card("Shoe watches", [_link(_shoe_line(x), x["url"]) for x in shoes]))
+    for topic, group in by_topic.items():
+        section(
+            topic.title(),
+            [(f"{i['title']} ({i['source']})", i["url"]) for i in group],
+            _list_card(topic, [_link(i["title"], i["url"]) + _meta(_item_meta(i, now))
+                               for i in group]),
+        )
     if not items:
         lines += ["", "No new reading picks."]
-        parts.append("<p>No new reading picks.</p>")
+        cards.append(_card(_meta("No new reading picks today.")))
     lines += ["", fresh]
-    parts.append(f"<p><small>{html.escape(fresh)}</small></p>")
-    return subject, "\n".join(lines) + "\n", "".join(parts)
+
+    counts = " · ".join(
+        f"{n} {label}{'' if n == 1 else 's'}"
+        for n, label in (
+            (len(items), "reading pick"), (len(games), "game"), (len(shoes), "shoe update")
+        )
+        if n
+    )
+    masthead = (
+        f'<tr><td style="padding:4px 4px 20px">{_eyebrow("AIsaac Daily", accent=True)}'
+        f'<div class="d-ink" style="color:{INK};font-size:28px;font-weight:700;'
+        f'letter-spacing:-0.02em;margin-top:6px">{local:%A}, {local:%Y/%m/%d}</div>'
+        + (_meta(counts) if counts else "") + "</td></tr>"
+    )
+    footer = (
+        f'<tr><td class="d-muted" style="color:{MUTED};font-size:12px;padding:4px 4px 0">'
+        f"{_e(fresh)}. Headlines link to the publisher.</td></tr>"
+    )
+    body = (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<meta name="color-scheme" content="light dark">'
+        '<meta name="supported-color-schemes" content="light dark">'
+        f"<title>{_e(subject)}</title><style>{_DARK_CSS}</style></head>"
+        f'<body class="d-bg" style="margin:0;padding:0;background:{BG}">'
+        f'<table {_TABLE} class="d-bg" style="background:{BG}"><tr>'
+        f'<td align="center" style="padding:24px 12px;font-family:{_FONT}">'
+        f'<table {_TABLE} style="max-width:600px;font-family:{_FONT}">'
+        + masthead + "".join(cards) + footer
+        + "</table></td></tr></table></body></html>"
+    )
+    return subject, "\n".join(lines) + "\n", body
 
 
 def pick_games(now: datetime) -> list[dict]:

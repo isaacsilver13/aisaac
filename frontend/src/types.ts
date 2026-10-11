@@ -240,7 +240,7 @@ export interface MetricsHistory {
   series: Record<string, { t: string; value: number }[]>;
 }
 
-export type NewsState = "new" | "saved" | "dismissed";
+export type NewsState = "new" | "read" | "saved" | "dismissed";
 
 export interface NewsItem {
   id: number;

@@ -2,15 +2,15 @@ import { useCallback, useState } from "react";
 import { Bookmark, BookmarkSolid, Refresh, Xmark } from "iconoir-react";
 
 import { fetchNews, setNewsState } from "../api";
-import { Badge } from "../components/primitives/Badge";
 import { EmptyState } from "../components/primitives/EmptyState";
 import { ErrorState } from "../components/primitives/ErrorState";
 import { PageHeader } from "../components/primitives/PageHeader";
-import { Table, type Column } from "../components/primitives/Table";
 import { useAsyncData } from "../hooks/useAsyncData";
-import { centralTimestamp } from "../time";
+import { centralTimestamp, humanizeTimestamp } from "../time";
 import { readToken, readWriteToken } from "../token";
 import type { NewsItem, NewsState } from "../types";
+
+type View = "all" | "unread" | "saved";
 
 export default function News() {
   const token = readToken();
@@ -18,64 +18,95 @@ export default function News() {
     useCallback((force: boolean) => fetchNews(token, force), [token]),
   );
   const [actionError, setActionError] = useState<string | null>(null);
+  // Optimistic state changes, so reading or saving never waits on a reload.
+  const [overrides, setOverrides] = useState<Record<number, NewsState>>({});
+  const [view, setView] = useState<View>("all");
+  const [topic, setTopic] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
   const canWrite = Boolean(readWriteToken());
 
   async function mark(item: NewsItem, state: NewsState) {
+    if (!canWrite) return;
     setActionError(null);
+    setOverrides((o) => ({ ...o, [item.id]: state }));
     try {
       await setNewsState(item.id, state);
-      await reload();
     } catch (e) {
+      setOverrides((o) => ({ ...o, [item.id]: item.state }));
       setActionError(e instanceof Error ? e.message : "Update failed.");
     }
   }
 
-  const columns: Column<NewsItem>[] = [
-    {
-      key: "title",
-      header: "Headline",
-      sortValue: (n) => n.title,
-      render: (n) => (
-        <>
-          <a href={n.url} target="_blank" rel="noopener noreferrer">{n.title}</a>
-          <div className="muted" style={{ fontSize: 12 }}>{n.source} · {n.why}</div>
-        </>
-      ),
-    },
-    { key: "topic", header: "Topic", sortValue: (n) => n.topic, render: (n) => <Badge tone="info">{n.topic}</Badge> },
-    { key: "published", header: "Published", sortValue: (n) => n.published_at, render: (n) => centralTimestamp(n.published_at) },
-    { key: "score", header: "Score", align: "right", sortValue: (n) => n.score, render: (n) => n.score.toFixed(2) },
-    {
-      key: "actions",
-      header: "",
-      render: (n) => (
-        <span style={{ display: "inline-flex", gap: 8 }}>
+  const items = (data?.items ?? [])
+    .map((n) => ({ ...n, state: overrides[n.id] ?? n.state }))
+    .filter((n) => n.state !== "dismissed");
+  const unreadCount = items.filter((n) => n.state === "new").length;
+  const savedCount = items.filter((n) => n.state === "saved").length;
+  const needle = query.trim().toLowerCase();
+  const visible = items.filter(
+    (n) =>
+      (view === "all" || (view === "unread" ? n.state === "new" : n.state === "saved")) &&
+      (!topic || n.topic === topic) &&
+      (!needle || `${n.title} ${n.source} ${n.topic}`.toLowerCase().includes(needle)),
+  );
+  const [lead, ...rest] = visible;
+  const groups = new Map<string, NewsItem[]>();
+  for (const n of rest) groups.set(n.topic, [...(groups.get(n.topic) ?? []), n]);
+
+  const failing = data?.sources.filter((s) => s.last_error) ?? [];
+
+  function story(item: NewsItem, isLead = false) {
+    const unread = item.state === "new";
+    const writeHint = canWrite ? undefined : "Add your write token in Settings";
+    return (
+      <article key={item.id} className={`news-card${isLead ? " news-lead" : ""}${unread ? "" : " news-read"}`}>
+        <div className="news-meta">
+          {unread && <span className="news-unread-dot" aria-label="Unread" />}
+          {isLead && <span className="news-topic">{item.topic}</span>}
+          <span>{item.source}</span>
+          <span aria-hidden="true">·</span>
+          <time dateTime={item.published_at} title={centralTimestamp(item.published_at)}>
+            {humanizeTimestamp(item.published_at)}
+          </time>
+        </div>
+        <a
+          className="news-headline"
+          href={item.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => unread && void mark(item, "read")}
+        >
+          {item.title}
+        </a>
+        {isLead && <p className="news-why">{item.why}</p>}
+        <div className="news-actions">
           <button
             type="button"
-            className="refresh-button"
+            className="news-action"
             disabled={!canWrite}
-            title={canWrite ? undefined : "Add your write token in Settings"}
-            aria-label={n.state === "saved" ? `Unsave ${n.title}` : `Save ${n.title}`}
-            onClick={() => void mark(n, n.state === "saved" ? "new" : "saved")}
+            title={writeHint}
+            aria-pressed={item.state === "saved"}
+            aria-label={item.state === "saved" ? `Unsave ${item.title}` : `Save ${item.title}`}
+            onClick={() => void mark(item, item.state === "saved" ? "read" : "saved")}
           >
-            {n.state === "saved" ? <BookmarkSolid width={16} height={16} /> : <Bookmark width={16} height={16} />}
+            {item.state === "saved" ? <BookmarkSolid width={16} height={16} /> : <Bookmark width={16} height={16} />}
           </button>
           <button
             type="button"
-            className="refresh-button"
+            className="news-action"
             disabled={!canWrite}
-            title={canWrite ? undefined : "Add your write token in Settings"}
-            aria-label={`Dismiss ${n.title}`}
-            onClick={() => void mark(n, "dismissed")}
+            title={writeHint}
+            aria-label={`Dismiss ${item.title}`}
+            onClick={() => void mark(item, "dismissed")}
           >
             <Xmark width={16} height={16} />
           </button>
-        </span>
-      ),
-    },
-  ];
+        </div>
+      </article>
+    );
+  }
 
-  const failing = data?.sources.filter((s) => s.last_error) ?? [];
+  const chip = (active: boolean) => (active ? "coms-filter-chip active" : "coms-filter-chip");
 
   return (
     <>
@@ -104,17 +135,53 @@ export default function News() {
             </p>
           )}
           {actionError && <p role="alert">{actionError}</p>}
-          <Table
-            columns={columns}
-            rows={data.items}
-            rowKey={(n) => String(n.id)}
-            searchText={(n) => `${n.title} ${n.source} ${n.topic}`}
-            filters={[
-              { label: "Topic", value: (n) => n.topic },
-              { label: "Saved", value: (n) => (n.state === "saved" ? "saved" : "other") },
-            ]}
-            emptyMessage="No articles match."
-          />
+          <div className="news-toolbar">
+            <div className="coms-filter-group" role="group" aria-label="Show">
+              {(
+                [
+                  ["all", `All ${items.length}`],
+                  ["unread", `Unread ${unreadCount}`],
+                  ["saved", `Saved ${savedCount}`],
+                ] as const
+              ).map(([value, label]) => (
+                <button key={value} type="button" className={chip(view === value)} aria-pressed={view === value} onClick={() => setView(value)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="coms-filter-group" role="group" aria-label="Topic">
+              {[null, ...data.topics].map((t) => (
+                <button key={t ?? "all"} type="button" className={chip(topic === t)} aria-pressed={topic === t} onClick={() => setTopic(t)}>
+                  {t ?? "All topics"}
+                </button>
+              ))}
+            </div>
+            <input
+              className="news-search"
+              type="search"
+              placeholder="Search headlines"
+              aria-label="Search headlines"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+          {!lead ? (
+            data.freshness_at && <EmptyState message="No articles match." />
+          ) : (
+            <>
+              {story(lead, true)}
+              {[...groups].map(([name, group]) => (
+                <section key={name} className="news-section" aria-label={name}>
+                  <h2 className="news-section-title">
+                    {name} <span>{group.length}</span>
+                  </h2>
+                  <div className="news-grid">
+                    {group.map((n) => story(n))}
+                  </div>
+                </section>
+              ))}
+            </>
+          )}
         </>
       )}
     </>
