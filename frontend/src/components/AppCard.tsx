@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ArrowUpRight, Book, Check, Clock, Timer, Antenna, ShieldCheck } from "iconoir-react";
 
 import { fetchRunbook, resolveIncident } from "../api";
+import { centralTimestamp } from "../time";
 import type { CheckResult, Incident } from "../types";
 import { Card } from "./primitives/Card";
 import { StatusBadge } from "./StatusBadge";
@@ -13,11 +14,7 @@ interface AppCardProps {
   onIncidentResolved?: () => void;
 }
 
-function formatCheckedAt(value: string): string {
-  return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(
-    new Date(value),
-  );
-}
+const formatCheckedAt = centralTimestamp;
 
 function formatMetric(value: string | number | boolean): string {
   if (typeof value === "boolean") return value ? "Yes" : "No";

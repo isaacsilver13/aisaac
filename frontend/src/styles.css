@@ -308,7 +308,16 @@ body { background-color: var(--bg); color: var(--text); }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 
-.dashboard-top-row { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; margin: 20px 0; }
+.dashboard-top-row { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); margin: 20px 0; }
+.life-panel section { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 10px; }
+.life-panel h3 { font-size: 13px; margin: 0 0 6px; }
+.life-panel h3 a { color: inherit; }
+.life-panel ul { display: flex; flex-direction: column; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.life-panel li, .life-panel p { font-size: 13px; margin: 0; overflow-wrap: anywhere; }
+.life-panel p, .life-panel-meta { color: var(--muted); }
+.second-brain-strip { align-items: center; display: flex; flex-wrap: wrap; font-size: 13px; gap: 6px 12px; margin: 16px 0; padding: 12px 16px; }
+.second-brain-strip-breakdown { color: var(--muted); }
+.second-brain-strip-links { display: flex; gap: 12px; margin-left: auto; }
 .activity-feed-section { margin-top: 24px; }
 @media (max-width: 720px) {
   .dashboard-top-row { grid-template-columns: 1fr; }
@@ -462,6 +471,9 @@ body { background-color: var(--bg); color: var(--text); }
 .app-sidebar-expand:hover { background: var(--hover); color: var(--text); }
 .app-sidebar-sub { display: flex; flex-direction: column; gap: 1px; margin: 2px 0 4px 18px; }
 .app-sidebar-sub .app-sidebar-link { font-size: 13px; padding: 6px 12px; }
+.app-sidebar-group { background: transparent; border: 0; cursor: pointer; font: inherit; text-align: left; width: 100%; }
+.app-sidebar-group-arrow { margin-left: auto; }
+.app-drawer-group, .app-drawer-group:hover { background: transparent; color: var(--muted); }
 .app-sidebar-collapse { align-items: center; background: transparent; border: 0; border-radius: var(--radius); color: var(--text-muted); display: flex; gap: 12px; padding: 8px 12px; }
 .app-sidebar-collapse:hover { background: var(--hover); color: var(--text); }
 .tab-row { border-bottom: 1px solid var(--border); display: flex; gap: 4px; margin-bottom: 20px; }

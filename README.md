@@ -129,7 +129,7 @@ Most apps are single-container Fly apps, so their UI and API share one host. Vin
 
 ## Cold starts
 
-Fly machines scale to zero. Each health check has a 10s timeout and retries once (connection error, timeout, or a 502/503/504) before an app is marked `down`. A response that needed the retry, or took more than about 3s, shows as **Slow / waking up** instead of down. A `down` card shows the error and the time of the last check.
+Fly machines scale to zero. Each health check has a 10s timeout and retries once (connection error, timeout, or a 502/503/504) before an app is marked `down`. A response that needed the retry, or took more than about 8s, shows as **Slow / waking up** instead of down. A `down` card shows the error and the time of the last check.
 
 ## Current limitations
 

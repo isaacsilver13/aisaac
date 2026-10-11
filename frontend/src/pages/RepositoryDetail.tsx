@@ -10,9 +10,10 @@ import { Stat } from "../components/primitives/Stat";
 import { Table, type Column } from "../components/primitives/Table";
 import { useCallback } from "react";
 import { useAsyncData } from "../hooks/useAsyncData";
+import { centralTimestampOrDash } from "../time";
 import type { CIEvent, PullRequestSummary } from "../types";
 
-const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString([], { dateStyle: "short", timeStyle: "short" }) : "—");
+const when = centralTimestampOrDash;
 
 const prColumns: Column<PullRequestSummary>[] = [
   { key: "number", header: "#", align: "right", sortValue: (p) => p.number, render: (p) => p.number },

@@ -8,11 +8,12 @@ import { StatusDot } from "../components/primitives/StatusDot";
 import { Table, type Column } from "../components/primitives/Table";
 import type { Tone } from "../components/primitives/tone";
 import { useAsyncData } from "../hooks/useAsyncData";
+import { centralTimestampOrDash } from "../time";
 import { readToken } from "../token";
 import type { AutomationStatus } from "../types";
 
 const TONE: Record<AutomationStatus["status"], Tone> = { ok: "success", stale: "warning", never: "error", disabled: "neutral" };
-const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString([], { dateStyle: "short", timeStyle: "short" }) : "—");
+const when = centralTimestampOrDash;
 
 const columns: Column<AutomationStatus>[] = [
   { key: "name", header: "Automation", sortValue: (a) => a.name, render: (a) => a.name },

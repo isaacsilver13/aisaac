@@ -1,3 +1,4 @@
+import { centralTimestamp } from "../../time";
 import type { CIEvent } from "../../types";
 import { CiStatusBadge } from "../CiStatusBadge";
 
@@ -5,14 +6,7 @@ interface ComEventRowProps {
   event: CIEvent;
 }
 
-function formatReceivedAt(value: string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
+const formatReceivedAt = centralTimestamp;
 
 export function ComEventRow({ event }: ComEventRowProps) {
   return (

@@ -10,6 +10,7 @@ import { ErrorState } from "../primitives/ErrorState";
 import { Stat } from "../primitives/Stat";
 import { StatusDot } from "../primitives/StatusDot";
 import { Table, type Column } from "../primitives/Table";
+import { centralTimestamp } from "../../time";
 import type { Tone } from "../primitives/tone";
 
 const RANGES: HistoryRange[] = ["24h", "7d", "30d"];
@@ -24,7 +25,7 @@ const STATE_TONE: Record<HealthState, Tone> = {
 };
 
 const ms = (v: number | null) => (v === null ? "—" : `${Math.round(v)} ms`);
-const when = (iso: string) => new Date(iso).toLocaleString([], { dateStyle: "short", timeStyle: "short" });
+const when = centralTimestamp;
 
 const incidentColumns: Column<Incident>[] = [
   { key: "started", header: "Started", sortValue: (i) => i.started_at, render: (i) => when(i.started_at) },

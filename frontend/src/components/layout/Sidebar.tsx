@@ -5,7 +5,7 @@ import { Activity, NavArrowDown, NavArrowRight, SidebarCollapse, SidebarExpand }
 
 import { StatusDot } from "../primitives/StatusDot";
 import type { Tone } from "../primitives/tone";
-import { NAV_ITEMS } from "./navItems";
+import { NAV_ITEMS, isNavGroup, type NavGroup } from "./navItems";
 import { ThemeToggle } from "./ThemeToggle";
 
 interface SystemStatusSummary {
@@ -27,6 +27,49 @@ interface SidebarProps {
 
 const linkClass = ({ isActive }: { isActive: boolean }) => `app-sidebar-link${isActive ? " app-sidebar-link-active" : ""}`;
 
+function SidebarGroup({ group, collapsed }: { group: NavGroup; collapsed: boolean }) {
+  const [open, setOpen] = useState(true);
+
+  // Collapsed: no room for a header, so the group's links show as plain icons.
+  if (collapsed) {
+    return group.children.map((child) => (
+      <NavLink key={child.to} to={child.to} className={linkClass} title={child.label}>
+        <child.icon width={17} height={17} aria-hidden="true" />
+        <span className="app-sidebar-label">{child.label}</span>
+      </NavLink>
+    ));
+  }
+
+  const Arrow = open ? NavArrowDown : NavArrowRight;
+  return (
+    <div>
+      <button type="button" className="app-sidebar-link app-sidebar-group" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <group.icon width={17} height={17} aria-hidden="true" />
+        <span className="app-sidebar-label">{group.label}</span>
+        <Arrow width={14} height={14} aria-hidden="true" className="app-sidebar-group-arrow" />
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            className="app-sidebar-sub"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            style={{ overflow: "hidden" }}
+          >
+            {group.children.map((child) => (
+              <NavLink key={child.to} to={child.to} className={linkClass}>
+                <span>{child.label}</span>
+              </NavLink>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export function Sidebar({ status, apps, collapsed, onToggleCollapsed }: SidebarProps) {
   const [appsOpen, setAppsOpen] = useState(true);
   const CollapseIcon = collapsed ? SidebarExpand : SidebarCollapse;
@@ -38,7 +81,9 @@ export function Sidebar({ status, apps, collapsed, onToggleCollapsed }: SidebarP
         <span className="app-sidebar-label">AISAAC</span>
       </div>
       <nav className="app-sidebar-nav">
-        {NAV_ITEMS.map((item) => (
+        {NAV_ITEMS.map((item) => isNavGroup(item) ? (
+          <SidebarGroup key={item.label} group={item} collapsed={collapsed} />
+        ) : (
           <div key={item.to}>
             <div className="app-sidebar-row">
               <NavLink to={item.to} end={item.end} className={linkClass} title={collapsed ? item.label : undefined}>

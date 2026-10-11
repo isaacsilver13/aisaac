@@ -4,10 +4,9 @@ import { Refresh, Server } from "iconoir-react";
 import { fetchDashboard, fetchIncidents } from "../api";
 import { AppCard } from "../components/AppCard";
 import { ActivityFeed } from "../components/dashboard/ActivityFeed";
-import { AttentionPanel } from "../components/dashboard/AttentionPanel";
 import { FinancialsPanel } from "../components/dashboard/FinancialsPanel";
+import { LifePanel } from "../components/dashboard/LifePanel";
 import { SecondBrainPanel } from "../components/dashboard/SecondBrainPanel";
-import { TodayPanel } from "../components/dashboard/TodayPanel";
 import { SystemOverview } from "../components/dashboard/SystemOverview";
 import { EmptyState } from "../components/primitives/EmptyState";
 import { ErrorState } from "../components/primitives/ErrorState";
@@ -66,16 +65,16 @@ export default function CommandCenter() {
         <div className="dashboard-top-row">
           <SystemOverview
             results={results}
+            openIncidents={openIncidents}
             loading={loading}
             lastChecked={dashboard ? centralTimestamp(dashboard.refreshed_at) : undefined}
           />
-          <AttentionPanel openIncidents={openIncidents} results={results} />
+          <LifePanel />
         </div>
       )}
 
-      <TodayPanel />
-      <FinancialsPanel />
       <SecondBrainPanel />
+      <FinancialsPanel />
 
       <section className="apps-section" aria-labelledby="apps-heading">
         <div className="section-heading">
