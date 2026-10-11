@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import type { RepoActivity } from "../../types";
@@ -129,6 +129,7 @@ const HEATMAP_WEEKS = 53;
 /** GitHub-style daily grid: one column per week, Sunday on top, darker = more commits. */
 export function CommitHeatmap({ repos }: { repos: RepoActivity[] }) {
   const [now] = useState(Date.now);
+  const grid = useRef<HTMLDivElement>(null);
   const daily = dailyCommits(repos);
   const max = Math.max(0, ...daily.values());
   const today = isoDay(now);
@@ -136,13 +137,17 @@ export function CommitHeatmap({ repos }: { repos: RepoActivity[] }) {
     Array.from({ length: 7 }, (_, i) => isoDay(start + i * 86_400_000)),
   );
   const total = [...daily.values()].reduce((a, b) => a + b, 0);
+  // On narrow screens the grid scrolls; start at the most recent weeks, like GitHub does.
+  useLayoutEffect(() => {
+    if (grid.current) grid.current.scrollLeft = grid.current.scrollWidth;
+  }, [total]);
 
   return (
     <ChartCard title={`Daily commits, last year · ${total} total`}>
       {max === 0 ? (
         <EmptyState message="No commit history yet. GitHub computes it on first request; refresh in a minute." />
       ) : (
-        <div className="commit-heatmap" role="img" aria-label={`${total} commits in the last year, by day`}>
+        <div ref={grid} className="commit-heatmap" role="img" aria-label={`${total} commits in the last year, by day`}>
           {days.map((day) => {
             const count = daily.get(day) ?? 0;
             // Four steps of one hue (sequential), scaled to the busiest day.
