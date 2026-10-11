@@ -1,6 +1,6 @@
 from collections.abc import Mapping
 
-from .schemas import AppDefinition
+from .schemas import AppDefinition, AppStack, StackNode
 
 NFL_METRICS = ("last_activity_at", "data_freshness_at", "picks_total", "games_total")
 # Dates and counts only: no dollar amounts, tickers, accounts or P&L (see CLAUDE.md).
@@ -188,6 +188,115 @@ _REGISTRY: Mapping[str, tuple[AppDefinition, ...]] = {
             product_url="https://aisaac-chess.fly.dev/",
             health_url="https://aisaac-chess.fly.dev/api/health",
         ),
+    ),
+}
+
+
+def _node(kind: str, name: str, tech: str, host: str | None = None, detail: str = "") -> StackNode:
+    return StackNode(kind=kind, name=name, tech=tech, host=host, detail=detail)
+
+
+_PUBLIC_PROBES = "Public health, readiness and allowlisted metrics checks"
+
+# Topology for the Stack tab, shared by both profiles. Versions and regions are copied
+# from each repo's manifests and fly.toml (2026-10); the live Fly release comes from
+# the Deployments API. ponytail: hand-maintained, refresh when an app upgrades a major.
+STACKS: Mapping[str, AppStack] = {
+    "vinyl": AppStack(
+        description="Catalog UI and API are separate Fly apps; the API owns the collection data.",
+        region="ewr",
+        nodes=(
+            _node("ui", "Catalog UI", "Streamlit 1.63", "vinyl-catalog"),
+            _node("api", "Vinyl API", "FastAPI 0.141 · SQLAlchemy 2.0", "vinyl-api"),
+            _node("database", "Collection DB", "SQLite", "vinyl-api", "Fly volume /data"),
+        ),
+        monitoring=_PUBLIC_PROBES,
+    ),
+    "nfl-confidence": AppStack(
+        description="One Fly app serves the React UI and the FastAPI endpoints.",
+        region="iad",
+        nodes=(
+            _node("ui", "Web experience", "React 19 · Vite 8", "nfl-confidence-web"),
+            _node("api", "Picks API", "FastAPI 0.115 · SQLAlchemy 2.0", "nfl-confidence-web"),
+            _node("database", "Application data", "PostgreSQL", None, "psycopg 3"),
+        ),
+        monitoring=_PUBLIC_PROBES,
+    ),
+    "betting-aggregator": AppStack(
+        description="One Fly app serves UI and API; the API merges provider odds with its DB.",
+        region="ewr",
+        nodes=(
+            _node("ui", "Odds comparison", "React 18 · Vite 6", "betting-aggregator-api"),
+            _node(
+                "api", "Aggregator API", "FastAPI 0.115 · SQLAlchemy 2.0", "betting-aggregator-api"
+            ),
+            _node("database", "Odds + cache state", "PostgreSQL", "Neon", "asyncpg"),
+            _node("provider", "Odds provider", "The Odds API", None, "External HTTP API"),
+        ),
+        monitoring="Public health and allowlisted metrics checks",
+    ),
+    "nba-prediction": AppStack(
+        description="Intentionally local-only: no production endpoint; it pushes a heartbeat.",
+        nodes=(
+            _node("ui", "Dashboard", "Streamlit 1.65", "Local machine"),
+            _node("job", "Experiments", "Python · models + backtests", "Local machine"),
+            _node("database", "Datasets + artifacts", "Local files", "Local machine"),
+        ),
+        monitoring="Push heartbeat only; no public health probe",
+    ),
+    "gym-tracker": AppStack(
+        description="One Fly app serves the workout UI and its API.",
+        region="ewr",
+        nodes=(
+            _node("ui", "Workout interface", "React 18 · Vite 6", "isilver-gym-tracker-api"),
+            _node("api", "Gym API", "FastAPI 0.115 · SQLAlchemy 2.0", "isilver-gym-tracker-api"),
+            _node("database", "Application data", "PostgreSQL", None, "psycopg 3"),
+        ),
+        monitoring=_PUBLIC_PROBES,
+    ),
+    "portfolio-analysis": AppStack(
+        description="Owns private portfolio data; AIsaac reads only scoped aggregate metrics.",
+        region="iad",
+        nodes=(
+            _node("ui", "Portfolio interface", "React 19 · Vite 8", "portfolio-analysis-api"),
+            _node(
+                "api", "Portfolio API", "FastAPI 0.115 · SQLAlchemy 2.0", "portfolio-analysis-api"
+            ),
+            _node("database", "Private portfolio data", "PostgreSQL", None, "Not read by AIsaac"),
+        ),
+        monitoring="Health, readiness and scoped aggregate metrics checks",
+    ),
+    "aisaac-rocket": AppStack(
+        description="One Fly app serves the finance UI and API; AIsaac probes public health only.",
+        region="iad",
+        nodes=(
+            _node("ui", "Finance interface", "React 18 · Vite 6", "aisaac-rocket"),
+            _node("api", "Finance API", "FastAPI 0.115 · SQLAlchemy 2.1", "aisaac-rocket"),
+            _node(
+                "database",
+                "Private finance data",
+                "SQLite",
+                "aisaac-rocket",
+                "Fly volume /data · not read by AIsaac",
+            ),
+        ),
+        monitoring="Public health check only; no metrics exposed",
+    ),
+    "chess": AppStack(
+        description="One Fly app serves the board UI and API; AIsaac probes public health only.",
+        region="ewr",
+        nodes=(
+            _node("ui", "Board + Stockfish bots", "React 19 · Vite 8", "aisaac-chess"),
+            _node("api", "Game server", "Hono 4 · Node", "aisaac-chess"),
+            _node(
+                "database",
+                "Game history",
+                "SQLite · better-sqlite3",
+                "aisaac-chess",
+                "Fly volume /data · not read by AIsaac",
+            ),
+        ),
+        monitoring="Public health check only; no metrics exposed",
     ),
 }
 

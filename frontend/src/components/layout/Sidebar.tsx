@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { NavLink } from "react-router-dom";
 import { Activity, NavArrowDown, NavArrowRight, SidebarCollapse, SidebarExpand } from "iconoir-react";
 
+import { AppIcon } from "../application/AppIcon";
 import { StatusDot } from "../primitives/StatusDot";
 import type { Tone } from "../primitives/tone";
 import { NAV_ITEMS, isNavGroup, type NavGroup } from "./navItems";
@@ -114,6 +115,7 @@ export function Sidebar({ status, apps, collapsed, onToggleCollapsed }: SidebarP
                 >
                   {apps.map((app) => (
                     <NavLink key={app.id} to={`/applications/${app.id}/overview`} className={linkClass}>
+                      <AppIcon appId={app.id} size={15} />
                       <span>{app.name}</span>
                     </NavLink>
                   ))}

@@ -1,6 +1,7 @@
 import { Route, Routes } from "react-router-dom";
 
 import { AppShell } from "./components/layout/AppShell";
+import Applications from "./pages/Applications";
 import Automations from "./pages/Automations";
 import Agents from "./pages/Agents";
 import Analytics from "./pages/Analytics";
@@ -11,7 +12,7 @@ import News from "./pages/News";
 import Shoes from "./pages/Shoes";
 import Sports from "./pages/Sports";
 import SecondBrain from "./pages/SecondBrain";
-import { ApplicationPage, ComingSoon, NotFound, RedirectKeepSearch } from "./pages/stubs";
+import { ApplicationPage, NotFound, RedirectKeepSearch } from "./pages/stubs";
 import Settings from "./pages/Settings";
 import Repositories from "./pages/Repositories";
 import RepositoryDetail from "./pages/RepositoryDetail";
@@ -22,7 +23,7 @@ export default function App() {
     <AppShell>
       <Routes>
         <Route path="/" element={<CommandCenter />} />
-        <Route path="/applications" element={<ComingSoon title="Applications" />} />
+        <Route path="/applications" element={<Applications />} />
         <Route path="/applications/:appId/:tab" element={<ApplicationPage />} />
         <Route path="/github" element={<Analytics />} />
         <Route path="/github/repositories" element={<Repositories />} />

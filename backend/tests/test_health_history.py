@@ -118,21 +118,3 @@ def test_endpoint_unknown_app_404_and_known_app_ok(tmp_path) -> None:
     ok = asyncio.run(get(f"/api/v1/apps/{app_id}/health-history?range=7d"))
     assert ok.status_code == 200 and ok.json()["range"] == "7d"
     assert asyncio.run(get(f"/api/v1/apps/{app_id}/health-history?range=1y")).status_code == 422
-
-
-def test_numeric_metrics_are_recorded_and_bucketed(tmp_path) -> None:
-    health_history.configure(str(tmp_path / "h.db"))
-    base = NOW - timedelta(minutes=10)
-    for seconds, games in [(0, 10), (60, 20)]:
-        r = _result("a", "up", 0).model_copy(
-            update={
-                "checked_at": base + timedelta(seconds=seconds),
-                "metrics": {"games": games, "ok": True, "label": "x"},
-            }
-        )
-        health_history.record([r])
-
-    series = health_history.metrics_history("a", "24h", now=NOW)["series"]
-
-    assert list(series) == ["games"]  # bool and string metrics are skipped
-    assert series["games"] == [{"t": series["games"][0]["t"], "value": 15.0}]

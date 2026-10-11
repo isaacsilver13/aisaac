@@ -42,9 +42,10 @@ from .config import get_settings
 from .github_monitor import GitHubMonitor
 from .github_registry import get_repos
 from .monitoring import Monitor
-from .registry import get_registry
+from .registry import STACKS, get_registry
 from .schemas import (
     AgentSummary,
+    AppInfo,
     CIEventOut,
     CIReportIn,
     ClaudeUsageIn,
@@ -140,13 +141,13 @@ def app_health_history(
     return health_history.history(app_id, range)
 
 
-@app.get("/api/v1/apps/{app_id}/metrics-history")
-def app_metrics_history(
-    app_id: str, range: health_history.Range = Query(default="24h")
-) -> dict:
-    if app_id not in {a.id for a in get_registry(settings.profile)}:
-        raise HTTPException(404, "Unknown application.")
-    return health_history.metrics_history(app_id, range)
+@app.get("/api/v1/apps", response_model=list[AppInfo])
+def list_apps() -> list[AppInfo]:
+    """Registry entries with their stack map. Public URLs only, like /dashboard."""
+    return [
+        AppInfo(**a.model_dump(include=set(AppInfo.model_fields)), stack=STACKS.get(a.id))
+        for a in get_registry(settings.profile)
+    ]
 
 
 def _secrets_match(supplied: Optional[str], expected: str) -> bool:

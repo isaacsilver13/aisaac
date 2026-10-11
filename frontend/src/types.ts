@@ -234,10 +234,37 @@ export interface ConfigItem {
   configured: boolean;
 }
 
-export interface MetricsHistory {
-  app_id: string;
-  range: HistoryRange;
-  series: Record<string, { t: string; value: number }[]>;
+export type StackNodeKind = "ui" | "api" | "job" | "database" | "provider";
+
+export interface StackNode {
+  kind: StackNodeKind;
+  name: string;
+  tech: string;
+  /** Nodes sharing a host render inside one hosting boundary. */
+  host: string | null;
+  detail: string;
+}
+
+export interface AppStack {
+  description: string;
+  region: string | null;
+  nodes: StackNode[];
+  monitoring: string;
+}
+
+/** Public registry entry from /api/v1/apps. */
+export interface AppInfo {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  product_url: string | null;
+  health_url: string | null;
+  readiness_url: string | null;
+  metrics_url: string | null;
+  monitor_target: "health" | "page" | "push";
+  fly_app: string | null;
+  stack: AppStack | null;
 }
 
 export type NewsState = "new" | "read" | "saved" | "dismissed";

@@ -1,4 +1,4 @@
-import type { NewShoeWatch, OwnResponse, NewsResponse, ShoesResponse, SportsResponse, NewsState, AutomationStatus, ConfigItem, MetricsHistory, AppLogs, Deployments, HealthHistory, HistoryRange, LearningModule, AgentSummary, CIEvent, DashboardResponse, FinancialSnapshot, Incident, Note, NoteListItem, Portal, RepoActivity, SecondBrainSummary, VaultGraph } from "./types";
+import type { NewShoeWatch, OwnResponse, NewsResponse, ShoesResponse, SportsResponse, NewsState, AutomationStatus, ConfigItem, AppInfo, AppLogs, Deployments, HealthHistory, HistoryRange, LearningModule, AgentSummary, CIEvent, DashboardResponse, FinancialSnapshot, Incident, Note, NoteListItem, Portal, RepoActivity, SecondBrainSummary, VaultGraph } from "./types";
 import { readToken, readWriteToken } from "./token";
 
 export class FinancialsAuthError extends Error {}
@@ -156,12 +156,10 @@ export async function fetchConfigStatus(token: string): Promise<ConfigItem[]> {
   return ((await response.json()) as { items: ConfigItem[] }).items;
 }
 
-export async function fetchMetricsHistory(appId: string, range: HistoryRange): Promise<MetricsHistory> {
-  const response = await fetch(`/api/v1/apps/${encodeURIComponent(appId)}/metrics-history?range=${range}`, {
-    headers: { Accept: "application/json" },
-  });
-  if (!response.ok) throw new Error(`Metrics history request failed with HTTP ${response.status}.`);
-  return (await response.json()) as MetricsHistory;
+export async function fetchApps(): Promise<AppInfo[]> {
+  const response = await fetch("/api/v1/apps", { headers: { Accept: "application/json" } });
+  if (!response.ok) throw new Error(`Applications request failed with HTTP ${response.status}.`);
+  return (await response.json()) as AppInfo[];
 }
 
 export const fetchPortals = (token: string) => secondBrainGet<Portal[]>("portals", token);

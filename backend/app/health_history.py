@@ -30,14 +30,6 @@ CREATE TABLE IF NOT EXISTS health_checks (
 );
 CREATE INDEX IF NOT EXISTS ix_health_checks_app_checked
     ON health_checks (app_id, checked_at);
-CREATE TABLE IF NOT EXISTS metric_samples (
-    app_id TEXT NOT NULL,
-    checked_at TEXT NOT NULL,
-    key TEXT NOT NULL,
-    value REAL NOT NULL
-);
-CREATE INDEX IF NOT EXISTS ix_metric_samples_app_key_checked
-    ON metric_samples (app_id, key, checked_at);
 """
 
 Range = Literal["24h", "7d", "30d"]
@@ -78,13 +70,6 @@ def _connect() -> Iterator[sqlite3.Connection]:
 
 
 def record(results: Iterable[CheckResult]) -> None:
-    results = list(results)
-    samples = [
-        (r.app_id, r.checked_at.astimezone(timezone.utc).isoformat(), key, float(value))
-        for r in results
-        for key, value in r.metrics.items()
-        if isinstance(value, (int, float)) and not isinstance(value, bool)
-    ]
     rows = [
         (
             r.app_id,
@@ -105,9 +90,6 @@ def record(results: Iterable[CheckResult]) -> None:
             " readiness, provider_state, page_state, metrics_state) VALUES (?,?,?,?,?,?,?,?,?)",
             rows,
         )
-        conn.executemany(
-            "INSERT INTO metric_samples (app_id, checked_at, key, value) VALUES (?,?,?,?)", samples
-        )
     _prune_if_due()
 
 
@@ -119,7 +101,6 @@ def _prune_if_due() -> None:
     cutoff = (datetime.now(timezone.utc) - timedelta(days=_retention_days)).isoformat()
     with _connect() as conn:
         conn.execute("DELETE FROM health_checks WHERE checked_at < ?", (cutoff,))
-        conn.execute("DELETE FROM metric_samples WHERE checked_at < ?", (cutoff,))
 
 
 def latest() -> Optional[str]:
@@ -180,30 +161,3 @@ def history(app_id: str, range_: Range = "24h", now: datetime | None = None) -> 
             }
         )
     return {"app_id": app_id, "range": range_, "summary": summary, "points": points}
-
-
-def metrics_history(
-    app_id: str, range_: Range = "24h", now: datetime | None = None
-) -> dict[str, Any]:
-    """Numeric metrics the app reported, averaged per bucket: {key: [{t, value}]}."""
-    window, bucket_seconds = RANGES[range_]
-    now = now or datetime.now(timezone.utc)
-    with _connect() as conn:
-        rows = conn.execute(
-            "SELECT checked_at, key, value FROM metric_samples"
-            " WHERE app_id = ? AND checked_at >= ? ORDER BY checked_at",
-            (app_id, (now - window).isoformat()),
-        ).fetchall()
-    buckets: dict[str, dict[int, list[float]]] = {}
-    for r in rows:
-        ts = int(datetime.fromisoformat(r["checked_at"]).timestamp())
-        buckets.setdefault(r["key"], {}).setdefault(ts - ts % bucket_seconds, []).append(r["value"])
-    series = {
-        key: [
-            {"t": datetime.fromtimestamp(start, timezone.utc).isoformat(),
-             "value": round(sum(vals) / len(vals), 4)}
-            for start, vals in sorted(groups.items())
-        ]
-        for key, groups in buckets.items()
-    }
-    return {"app_id": app_id, "range": range_, "series": series}
