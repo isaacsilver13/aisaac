@@ -4,7 +4,7 @@ import json
 import logging
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -20,6 +20,7 @@ from . import (
     fly_client,
     health_history,
     incidents,
+    learning,
     metrics_store,
     notify,
     personal_connect,
@@ -53,6 +54,7 @@ from .schemas import (
     DashboardResponse,
     FinancialSnapshot,
     IncidentOut,
+    LearningProgressIn,
     NeonUsageIn,
     NeonUsageOut,
     ProviderCostIn,
@@ -598,6 +600,24 @@ def second_brain_note(path: str) -> dict:
         raise HTTPException(404, "No such note.")
     return note
 
+
+
+@app.get("/api/v1/learning/module", dependencies=[Depends(_require_read_token)])
+def learning_module(day: Optional[date] = None) -> dict:
+    module = learning.module_for(day or learning.today())
+    if module is None:
+        raise HTTPException(404, "No study notes synced yet. Run scripts/second_brain_push.py.")
+    return module
+
+
+@app.post(
+    "/api/v1/learning/progress", dependencies=[Depends(_require_write_token)]
+)
+def learning_progress(payload: LearningProgressIn) -> dict:
+    if learning.pick(second_brain_store.paths(), payload.day) != payload.path:
+        raise HTTPException(422, "That note is not the module for that day.")
+    day = payload.day.isoformat()
+    return {"completed_at": second_brain_store.mark_studied(day, payload.path)}
 
 frontend_dist = Path(settings.frontend_dist).resolve()
 if frontend_dist.is_dir():
