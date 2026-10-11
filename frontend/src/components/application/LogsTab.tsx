@@ -7,8 +7,9 @@ import type { LogLine } from "../../types";
 import { EmptyState } from "../primitives/EmptyState";
 import { ErrorState } from "../primitives/ErrorState";
 import { Table, type Column } from "../primitives/Table";
+import { centralTimestampOrDash } from "../../time";
 
-const time = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString() : "—");
+const time = centralTimestampOrDash;
 
 const columns: Column<LogLine>[] = [
   { key: "time", header: "Time", sortValue: (l) => l.timestamp, render: (l) => time(l.timestamp) },

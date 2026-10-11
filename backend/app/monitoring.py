@@ -25,7 +25,7 @@ class Monitor:
         cache_ttl_seconds: float = 20.0,
         settings: Settings | None = None,
         retry_delay_seconds: float = 2.0,
-        slow_after_ms: float = 3000.0,
+        slow_after_ms: float = 8000.0,
     ) -> None:
         self.cache_ttl_seconds = cache_ttl_seconds
         self.settings = settings

@@ -9,12 +9,12 @@ import { EmptyState } from "../primitives/EmptyState";
 import { ErrorState } from "../primitives/ErrorState";
 import { Stat } from "../primitives/Stat";
 import { Table, type Column } from "../primitives/Table";
-import { exactTimestamp, humanizeTimestamp } from "../../time";
+import { centralTimestamp, exactTimestamp, humanizeTimestamp } from "../../time";
 
 type Metric = { key: string; value: string };
 
 const RANGES: HistoryRange[] = ["24h", "7d", "30d"];
-const when = (iso: string) => new Date(iso).toLocaleString([], { dateStyle: "short", timeStyle: "short" });
+const when = centralTimestamp;
 
 const columns: Column<Metric>[] = [
   { key: "key", header: "Metric", sortValue: (m) => m.key, render: (m) => m.key },

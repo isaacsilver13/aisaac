@@ -170,7 +170,7 @@ export const fetchGraph = (token: string) => secondBrainGet<VaultGraph>("graph",
 
 const STALE_NEWS_MS = 60 * 60 * 1000;
 
-async function getNews(token: string): Promise<NewsResponse> {
+export async function getNews(token: string): Promise<NewsResponse> {
   const response = await fetch("/api/v1/personal/news", {
     headers: { Accept: "application/json", "X-Dashboard-Token": token },
   });

@@ -9,9 +9,9 @@ import { Card } from "../primitives/Card";
 import { EmptyState } from "../primitives/EmptyState";
 import { ErrorState } from "../primitives/ErrorState";
 import { Stat } from "../primitives/Stat";
-import { exactTimestamp, humanizeTimestamp } from "../../time";
+import { centralTimestampOrDash, exactTimestamp, humanizeTimestamp } from "../../time";
 
-const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString([], { dateStyle: "short", timeStyle: "short" }) : "—");
+const when = centralTimestampOrDash;
 const state = (s: HealthState | string | null) => s ?? "—";
 
 /** Liveness, provider, readiness and freshness stay separate signals (see CLAUDE.md). */
