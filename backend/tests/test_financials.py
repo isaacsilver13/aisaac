@@ -132,3 +132,16 @@ def test_neon_without_free_plan_has_no_dollars():
     body = _read().json()
     assert all(r["neon_usd"] is None for r in body["hosting"])
     assert body["hosting_total_usd"] is None
+
+
+def test_push_attempts_are_logged_and_readable_with_token():
+    _push("claude", {"session": {"used_pct": 150}})
+    _push("claude", CLAUDE)
+    _push("claude", CLAUDE, secret="nope")  # rejected before the handler: not logged
+    url = "/api/v1/automations/claude-usage/runs"
+    assert _request("GET", url).status_code == 401
+    runs = _request("GET", url, headers={"X-Dashboard-Token": "read"}).json()
+    assert [(r["ok"], r["detail"]) for r in runs] == [(True, ""), (False, "invalid_payload")]
+    assert _request(
+        "GET", "/api/v1/automations/nope/runs", headers={"X-Dashboard-Token": "read"}
+    ).status_code == 404
