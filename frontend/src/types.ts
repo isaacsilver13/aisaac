@@ -60,6 +60,24 @@ export interface RepoActivity {
   checked_at: string;
   cached: boolean;
   detail: string | null;
+  private: boolean;
+  description: string | null;
+  language: string | null;
+  pushed_at: string | null;
+  languages: Record<string, number>;
+  commit_weeks: CommitWeek[];
+  pull_request_history: PullRequestDates[];
+}
+
+/** One GitHub stats week: Sunday 00:00 UTC, then commits per day starting Sunday. */
+export interface CommitWeek {
+  week: string;
+  days: number[];
+}
+
+export interface PullRequestDates {
+  opened_at: string;
+  merged_at: string | null;
 }
 
 export interface AgentSummary {

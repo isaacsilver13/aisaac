@@ -60,10 +60,11 @@ export async function fetchAgents(): Promise<AgentSummary[]> {
   return (await response.json()) as AgentSummary[];
 }
 
-export async function fetchAnalytics(forceRefresh = false): Promise<RepoActivity[]> {
+export async function fetchAnalytics(forceRefresh = false, token = readToken()): Promise<RepoActivity[]> {
   const query = forceRefresh ? "?force_refresh=true" : "";
+  // The read token is optional here: with it, private repos are included.
   const response = await fetch(`/api/v1/analytics${query}`, {
-    headers: { Accept: "application/json" },
+    headers: token ? { Accept: "application/json", "X-Dashboard-Token": token } : { Accept: "application/json" },
   });
   if (!response.ok) {
     throw new Error(`Analytics request failed with HTTP ${response.status}.`);

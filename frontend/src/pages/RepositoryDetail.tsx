@@ -1,6 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 
 import { fetchAnalytics, fetchComsEvents } from "../api";
+import { CommitHeatmap, LanguagesChart, PullRequestChart, WeeklyCommitsChart } from "../components/analytics/GitHubCharts";
 import { CiStatusBadge } from "../components/CiStatusBadge";
 import { Card } from "../components/primitives/Card";
 import { EmptyState } from "../components/primitives/EmptyState";
@@ -38,14 +39,14 @@ export default function RepositoryDetail() {
   if (repos.error) return <ErrorState message={repos.error} onRetry={() => void repos.reload(true)} />;
   if (repos.loading) return null;
   const repo = repos.data?.find((r) => r.repo_id === id);
-  if (!repo) return <>{back}<EmptyState message="That repository is not tracked." /></>;
+  if (!repo) return <>{back}<EmptyState message="That repository is not tracked, or it is private and no dashboard token is saved." /></>;
 
   return (
     <>
       {back}
       <PageHeader
         title={repo.name}
-        description={repo.detail ?? undefined}
+        description={repo.detail ?? repo.description ?? undefined}
         actions={<a href={`https://github.com/${repo.owner}/${repo.repo}`} target="_blank" rel="noreferrer">{repo.owner}/{repo.repo}</a>}
       />
       <Card>
@@ -55,8 +56,22 @@ export default function RepositoryDetail() {
           <Stat label="Open issues" value={repo.open_issue_count ?? "—"} />
           <Stat label="Commits, 7d" value={repo.commits_last_7d ?? "—"} />
           <Stat label="Last commit" value={when(repo.last_commit_at)} />
+          <Stat label="Last push" value={when(repo.pushed_at)} />
+          <Stat label="Language" value={repo.language ?? "—"} />
+          <Stat label="Visibility" value={repo.private ? "Private" : "Public"} />
         </div>
       </Card>
+
+      <div className="activity-feed-section">
+        <CommitHeatmap repos={[repo]} />
+      </div>
+      <div className="activity-feed-section">
+        <WeeklyCommitsChart repos={[repo]} />
+      </div>
+      <div className="analytics-chart-row">
+        <PullRequestChart repos={[repo]} />
+        <LanguagesChart repos={[repo]} />
+      </div>
 
       <div className="ui-stat-label" style={{ margin: "16px 0 8px" }}>Open pull requests</div>
       <Table columns={prColumns} rows={repo.open_pull_requests} rowKey={(p) => String(p.number)} emptyMessage="No open pull requests." />

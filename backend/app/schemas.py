@@ -133,6 +133,12 @@ class RepoDefinition(BaseModel):
     repo: str
     stale_days: int = Field(default=14, gt=0)
     enabled: bool = True
+    # Facts filled in from GitHub's repo listing; private repos are only served with the
+    # dashboard read token.
+    private: bool = False
+    description: Optional[str] = None
+    language: Optional[str] = None
+    pushed_at: Optional[datetime] = None
 
 
 class PullRequestSummary(BaseModel):
@@ -141,6 +147,16 @@ class PullRequestSummary(BaseModel):
     url: str
     opened_at: datetime
     stale: bool = False
+
+
+class PullRequestDates(BaseModel):
+    opened_at: datetime
+    merged_at: Optional[datetime] = None
+
+
+class CommitWeek(BaseModel):
+    week: datetime  # Sunday 00:00 UTC that starts the week
+    days: list[int]  # commits per day, Sunday first
 
 
 class RepoActivity(BaseModel):
@@ -158,6 +174,13 @@ class RepoActivity(BaseModel):
     checked_at: datetime
     cached: bool = False
     detail: Optional[str] = None
+    private: bool = False
+    description: Optional[str] = None
+    language: Optional[str] = None
+    pushed_at: Optional[datetime] = None
+    languages: dict[str, int] = Field(default_factory=dict)
+    commit_weeks: list[CommitWeek] = Field(default_factory=list)
+    pull_request_history: list[PullRequestDates] = Field(default_factory=list)
 
 
 class AgentDefinition(BaseModel):
