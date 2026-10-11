@@ -33,6 +33,46 @@ class AppDefinition(BaseModel):
     fly_app: Optional[str] = Field(default=None, pattern=r"^[a-z0-9-]+$")
 
 
+StackNodeKind = Literal["ui", "api", "job", "database", "provider"]
+
+
+class StackNode(BaseModel):
+    """One box on the Stack tab's flow map. Nodes sharing `host` render inside one boundary."""
+
+    model_config = ConfigDict(frozen=True)
+
+    kind: StackNodeKind
+    name: str
+    tech: str
+    host: Optional[str] = None
+    detail: str = ""
+
+
+class AppStack(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    description: str
+    region: Optional[str] = None
+    nodes: tuple[StackNode, ...]
+    monitoring: str
+
+
+class AppInfo(BaseModel):
+    """Public registry view for the Applications page and Stack tab. Never token setting names."""
+
+    id: str
+    name: str
+    category: str
+    description: str
+    product_url: Optional[HttpUrl] = None
+    health_url: Optional[HttpUrl] = None
+    readiness_url: Optional[HttpUrl] = None
+    metrics_url: Optional[HttpUrl] = None
+    monitor_target: MonitorTarget
+    fly_app: Optional[str] = None
+    stack: Optional[AppStack] = None
+
+
 class CheckResult(BaseModel):
     app_id: str
     name: str

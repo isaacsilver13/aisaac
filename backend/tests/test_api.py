@@ -160,3 +160,16 @@ def test_runbook_returns_content_when_present(monkeypatch, tmp_path) -> None:
 
     assert response.status_code == 200
     assert "Runbook: Vinyl" in response.text
+
+def test_apps_endpoint_lists_registry_with_stack_and_no_token_settings() -> None:
+    async def get() -> httpx.Response:
+        transport = httpx.ASGITransport(app=main.app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            return await client.get("/api/v1/apps")
+
+    response = asyncio.run(get())
+    assert response.status_code == 200
+    body = response.json()
+    assert [a["id"] for a in body] == [a.id for a in main.get_registry(main.settings.profile)]
+    assert all(a["stack"]["nodes"] for a in body)
+    assert "metrics_token_setting" not in response.text

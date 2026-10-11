@@ -3,25 +3,16 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 
 import { fetchHealthHistory, fetchIncidents } from "../../api";
 import { useAsyncData } from "../../hooks/useAsyncData";
-import type { HealthState, HistoryRange, Incident } from "../../types";
+import type { HistoryRange, Incident } from "../../types";
 import { Card } from "../primitives/Card";
 import { EmptyState } from "../primitives/EmptyState";
 import { ErrorState } from "../primitives/ErrorState";
 import { Stat } from "../primitives/Stat";
 import { StatusDot } from "../primitives/StatusDot";
 import { Table, type Column } from "../primitives/Table";
-import type { Tone } from "../primitives/tone";
+import { STATE_TONE } from "../primitives/tone";
 
 const RANGES: HistoryRange[] = ["24h", "7d", "30d"];
-
-const STATE_TONE: Record<HealthState, Tone> = {
-  up: "success",
-  slow: "warning",
-  stale: "warning",
-  degraded: "error",
-  down: "error",
-  unavailable: "neutral",
-};
 
 const ms = (v: number | null) => (v === null ? "—" : `${Math.round(v)} ms`);
 const when = (iso: string) => new Date(iso).toLocaleString([], { dateStyle: "short", timeStyle: "short" });

@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { NavLink } from "react-router-dom";
 import { Xmark } from "iconoir-react";
 
+import { AppIcon } from "../application/AppIcon";
 import { NAV_ITEMS } from "./navItems";
 
 interface MobileDrawerProps {
@@ -91,6 +92,7 @@ export function MobileDrawer({ open, onClose, apps }: MobileDrawerProps) {
                       onClick={onClose}
                       className={({ isActive }) => `app-sidebar-link${isActive ? " app-sidebar-link-active" : ""}`}
                     >
+                      <AppIcon appId={app.id} size={15} />
                       <span>{app.name}</span>
                     </NavLink>
                   ))}
