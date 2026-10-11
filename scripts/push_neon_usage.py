@@ -1,14 +1,16 @@
 """Push Neon compute hours per project (current calendar month) to the dashboard.
 
-Neon's API reports usage, not dollars, so this pushes compute hours only. Needs
-a Neon API key with read access: NEON_API_KEY (and NEON_ORG_ID for org projects).
+Neon's API reports usage, not dollars, so this pushes compute hours plus the account's
+plan. On the Free plan the cost is exactly $0 and the dashboard shows each project's
+hours against the free allowance (FREE_HOURS_PER_PROJECT). Needs a Neon API key with
+read access: NEON_API_KEY (and NEON_ORG_ID for org projects).
 
 Tries the v2 consumption endpoint first (Launch plans and above), then the legacy
 one (Scale and above), then the project list's `cpu_used_sec` counters (any plan,
 current period only). Compute hours are
 compute-unit seconds / 3600 (v2) or `compute_time_seconds` / 3600 (legacy).
 
-    python scripts/push_neon_usage.py [--month 2026-09] [--dry-run]
+    python scripts/push_neon_usage.py [--month 2026-09] [--plan free] [--dry-run]
 """
 
 from __future__ import annotations
@@ -27,6 +29,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import push_common  # noqa: E402
 
 API = "https://console.neon.tech/api/v2"
+# https://neon.com/pricing: Free includes 100 CU-hours per project per month.
+FREE_HOURS_PER_PROJECT = 100.0
 
 
 def _get(path: str, params: dict[str, Any], key: str) -> dict[str, Any]:
@@ -69,16 +73,32 @@ def project_seconds(response: dict[str, Any]) -> dict[str, float]:
 
 
 def build_payload(
-    seconds_by_project: dict[str, float], names: dict[str, str], period: str
+    seconds_by_project: dict[str, float],
+    names: dict[str, str],
+    period: str,
+    plan: Optional[str] = None,
 ) -> dict[str, Any]:
     by_app = {
         names.get(pid, pid): round(seconds / 3600, 3) for pid, seconds in seconds_by_project.items()
     }
-    return {
+    payload: dict[str, Any] = {
         "period": period,
         "total_compute_hours": round(sum(by_app.values()), 3),
         "by_app": dict(sorted(by_app.items())),
+        "plan": plan,
     }
+    if plan and plan.startswith("free"):
+        payload["free_hours_per_project"] = FREE_HOURS_PER_PROJECT
+    return payload
+
+
+def fetch_plan(key: str, org_id: Optional[str]) -> Optional[str]:
+    """Billing plan id (e.g. "free_v3", "launch"), or None if the key can't read it."""
+    try:
+        body = _get(f"/organizations/{org_id}" if org_id else "/users/me", {}, key)
+    except urllib.error.HTTPError:
+        return None
+    return body.get("plan")
 
 
 def fetch_projects(key: str, org_id: Optional[str]) -> list[dict[str, Any]]:
@@ -120,6 +140,7 @@ def fetch_seconds(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--month", help="YYYY-MM to report (default: current month)")
+    parser.add_argument("--plan", help="Neon plan id if the key can't read it (e.g. free)")
     parser.add_argument("--dry-run", action="store_true", help="print the payload, don't push")
     args = parser.parse_args()
 
@@ -154,7 +175,8 @@ def main() -> int:
         print("Consumption API unavailable; using per-project counters.", file=sys.stderr)
         seconds = counter_seconds(projects)
     names = {p["id"]: p["name"] for p in projects}
-    payload = build_payload(seconds, names, start.strftime("%Y-%m"))
+    plan = args.plan or fetch_plan(key, org_id)
+    payload = build_payload(seconds, names, start.strftime("%Y-%m"), plan)
     print(json.dumps(payload, indent=2))
     if args.dry_run:
         return 0

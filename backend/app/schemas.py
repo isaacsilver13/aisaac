@@ -31,6 +31,9 @@ class AppDefinition(BaseModel):
     enabled: bool = True
     # Fly app that hosts this service; enables the Deployments tab (needs FLY_API_TOKEN).
     fly_app: Optional[str] = Field(default=None, pattern=r"^[a-z0-9-]+$")
+    # Extra Fly app / Neon project names whose pushed costs belong to this app (the id and
+    # fly_app already match).
+    cost_aliases: tuple[str, ...] = ()
 
 
 class CheckResult(BaseModel):
@@ -187,12 +190,22 @@ class ProviderCostIn(BaseModel):
         default=True,
         description="True when per-app figures are estimates rather than invoice lines.",
     )
+    machine_hours: dict[str, float] = Field(
+        default_factory=dict, description="Measured machine run time per Fly app"
+    )
+    invoice_total_usd: Optional[float] = Field(
+        default=None, ge=0, description="Month-to-date total typed in from the billing page"
+    )
 
 
 class NeonUsageIn(BaseModel):
     period: str = Field(description="Billing period label, e.g. 2026-09")
     total_compute_hours: float = Field(ge=0)
     by_app: dict[str, float] = Field(default_factory=dict, description="Compute hours per project")
+    plan: Optional[str] = Field(default=None, description="Neon plan id, e.g. free_v3")
+    free_hours_per_project: Optional[float] = Field(
+        default=None, ge=0, description="Free-plan compute allowance per project"
+    )
 
 
 class ClaudeUsageOut(ClaudeUsageIn):
@@ -211,11 +224,28 @@ class NeonUsageOut(NeonUsageIn):
     reported_at: datetime
 
 
+class HostingCostRow(BaseModel):
+    """One registry app's Fly + Neon figures (or an unmapped Fly app / Neon project)."""
+
+    key: str
+    name: str
+    fly_usd: Optional[float] = None
+    fly_hours: Optional[float] = None
+    neon_usd: Optional[float] = Field(
+        default=None, description="0 on Neon Free; None when the plan is unknown or paid"
+    )
+    neon_hours: Optional[float] = None
+    neon_allowance_pct: Optional[float] = None
+    total_usd: float = 0.0
+
+
 class FinancialSnapshot(BaseModel):
     claude: Optional[ClaudeUsageOut] = None
     codex: Optional[CodexUsageOut] = None
     neon: Optional[NeonUsageOut] = None
     fly: Optional[ProviderCostOut] = None
+    hosting: list[HostingCostRow] = Field(default_factory=list)
+    hosting_total_usd: Optional[float] = None
     detail: Optional[str] = None
 
 

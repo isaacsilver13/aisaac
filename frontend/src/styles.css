@@ -435,16 +435,20 @@ body { background-color: var(--bg); color: var(--text); }
   .app-drawer-overlay, .app-drawer { display: none; }
 }
 
-.financials-row { display: grid; gap: 16px; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 20px 0; }
-@media (max-width: 1100px) { .financials-row { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 960px) { .financials-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 720px) { .financials-row { grid-template-columns: 1fr; } }
+.financials-row { align-items: start; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); margin: 20px 0; }
+@media (max-width: 960px) { .financials-row { grid-template-columns: 1fr; } }
+.ai-usage-head { display: flex; justify-content: space-between; }
+.ai-usage { display: grid; gap: 10px; list-style: none; margin: 12px 0 0; padding: 0; }
+.ai-usage-row { align-items: center; display: grid; font-size: 13px; gap: 10px; grid-template-columns: 7em minmax(0, 1fr) 3em 4.5em; }
+.ai-usage-row .usage-meter { margin-top: 0; }
+.ai-usage-num { font-variant-numeric: tabular-nums; text-align: right; }
+.ai-usage-reset { color: var(--text-muted); font-size: 12px; }
+.cost-sub { color: var(--text-muted); display: block; font-size: 11px; }
+.cost-notes { color: var(--text-muted); font-size: 12px; margin: 10px 0 0; }
 .usage-meter { background: var(--line); border-radius: 999px; height: 6px; margin-top: 12px; overflow: hidden; }
 .usage-meter > div { background: var(--success); border-radius: 999px; height: 100%; }
 .usage-meter-warning > div { background: var(--warning); }
 .usage-meter-error > div { background: var(--error); }
-.cost-by-app { font-size: 12px; list-style: none; margin: 12px 0 0; padding: 0; }
-.cost-by-app li { display: flex; justify-content: space-between; padding: 3px 0; }
 .token-form { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; }
 .token-form input { background: transparent; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); padding: 8px 10px; }
 .theme-toggle { background: transparent; border: 0; border-radius: var(--radius); color: var(--text-muted); display: flex; margin-left: auto; padding: 6px; }
