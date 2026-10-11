@@ -57,6 +57,25 @@ describe("News", () => {
     expect(await screen.findByText(/No feed has refreshed/)).toBeTruthy();
   });
 
+  it("marks a headline read when opened and drops it from the unread filter", async () => {
+    window.localStorage.setItem("aisaac.dashboardToken", "t");
+    window.sessionStorage.setItem("aisaac.dashboardWriteToken", "w");
+    const fetchMock = vi.fn(async (url: string) =>
+      String(url).endsWith("/state") ? new Response(null, { status: 204 }) : json(snapshot()),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(<News />);
+    const link = await screen.findByText("Fed holds rates");
+    link.addEventListener("click", (e) => e.preventDefault());
+    fireEvent.click(link);
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(([u]) => String(u).endsWith("/1/state"));
+      expect(JSON.parse(String((call as unknown as [string, RequestInit])[1].body))).toEqual({ state: "read" });
+    });
+    fireEvent.click(screen.getByText("Unread 0"));
+    expect(screen.queryByText("Fed holds rates")).toBeNull();
+  });
+
   it("disables save without a write token and saves with one", async () => {
     window.localStorage.setItem("aisaac.dashboardToken", "t");
     const fetchMock = vi.fn(async (url: string) =>

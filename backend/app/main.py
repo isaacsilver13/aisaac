@@ -347,13 +347,13 @@ def second_brain_sync(payload: SecondBrainSyncIn) -> None:
 
 
 class NewsStateIn(BaseModel):
-    state: Literal["new", "saved", "dismissed"]
+    state: Literal["new", "read", "saved", "dismissed"]
 
 
 @app.get("/api/v1/personal/news", dependencies=[Depends(_require_read_token)])
 def personal_news_list(
     topic: Optional[str] = Query(default=None),
-    state: Optional[Literal["new", "saved", "dismissed"]] = Query(default=None),
+    state: Optional[Literal["new", "read", "saved", "dismissed"]] = Query(default=None),
 ) -> dict:
     if topic and topic not in personal_news.TOPICS:
         raise HTTPException(422, "Unknown topic.")
