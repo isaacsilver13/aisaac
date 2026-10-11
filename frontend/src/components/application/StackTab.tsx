@@ -107,7 +107,9 @@ export function StackTab({ appId }: { appId: string }) {
   if (apps.error) return <ErrorState message={apps.error} onRetry={() => void apps.reload()} />;
   if (!apps.data) return null;
   const app = apps.data.find((a) => a.id === appId);
-  if (!app?.stack) return <EmptyState message="No stack map is available for this application." />;
+  if (!app?.stack) {
+    return <EmptyState message={token ? "No stack map is available for this application." : "Add the dashboard token in Settings to see the stack map."} />;
+  }
 
   const stack = app.stack;
   const result = dashboard.data?.results.find((r) => r.app_id === appId);

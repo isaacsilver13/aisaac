@@ -166,7 +166,11 @@ export async function fetchConfigStatus(token: string): Promise<ConfigItem[]> {
 }
 
 export async function fetchApps(): Promise<AppInfo[]> {
-  const response = await fetch("/api/v1/apps", { headers: { Accept: "application/json" } });
+  const token = readToken();
+  // The read token is optional here: with it, each app's stack map is included.
+  const response = await fetch("/api/v1/apps", {
+    headers: token ? { Accept: "application/json", "X-Dashboard-Token": token } : { Accept: "application/json" },
+  });
   if (!response.ok) throw new Error(`Applications request failed with HTTP ${response.status}.`);
   return (await response.json()) as AppInfo[];
 }

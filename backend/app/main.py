@@ -144,10 +144,17 @@ def app_health_history(
 
 
 @app.get("/api/v1/apps", response_model=list[AppInfo])
-def list_apps() -> list[AppInfo]:
-    """Registry entries with their stack map. Public URLs only, like /dashboard."""
+def list_apps(x_dashboard_token: Optional[str] = Header(default=None)) -> list[AppInfo]:
+    """Registry entries (public URLs only, like /dashboard). The stack map names versions,
+    hosts and databases, so it is only included for holders of the read token."""
+    show_stack = bool(settings.dashboard_read_token) and _secrets_match(
+        x_dashboard_token, settings.dashboard_read_token
+    )
     return [
-        AppInfo(**a.model_dump(include=set(AppInfo.model_fields)), stack=STACKS.get(a.id))
+        AppInfo(
+            **a.model_dump(include=set(AppInfo.model_fields) - {"stack"}),
+            stack=STACKS.get(a.id) if show_stack else None,
+        )
         for a in get_registry(settings.profile)
     ]
 

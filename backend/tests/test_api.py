@@ -161,15 +161,21 @@ def test_runbook_returns_content_when_present(monkeypatch, tmp_path) -> None:
     assert response.status_code == 200
     assert "Runbook: Vinyl" in response.text
 
-def test_apps_endpoint_lists_registry_with_stack_and_no_token_settings() -> None:
-    async def get() -> httpx.Response:
+def test_apps_endpoint_shows_stack_only_with_read_token(monkeypatch) -> None:
+    monkeypatch.setattr(main.settings, "dashboard_read_token", "read-token")
+
+    async def get(headers: dict[str, str]) -> httpx.Response:
         transport = httpx.ASGITransport(app=main.app)
         async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-            return await client.get("/api/v1/apps")
+            return await client.get("/api/v1/apps", headers=headers)
 
-    response = asyncio.run(get())
-    assert response.status_code == 200
-    body = response.json()
-    assert [a["id"] for a in body] == [a.id for a in main.get_registry(main.settings.profile)]
-    assert all(a["stack"]["nodes"] for a in body)
-    assert "metrics_token_setting" not in response.text
+    public = asyncio.run(get({}))
+    assert public.status_code == 200
+    registry_ids = [a.id for a in main.get_registry(main.settings.profile)]
+    assert [a["id"] for a in public.json()] == registry_ids
+    assert all(a["stack"] is None for a in public.json())
+    assert all(a["stack"] is None for a in asyncio.run(get({"X-Dashboard-Token": "nope"})).json())
+
+    authed = asyncio.run(get({"X-Dashboard-Token": "read-token"}))
+    assert all(a["stack"]["nodes"] for a in authed.json())
+    assert "metrics_token_setting" not in authed.text

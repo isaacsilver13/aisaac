@@ -53,9 +53,18 @@ describe("StackTab", () => {
   });
 
   it("handles an app without a stack map", async () => {
+    window.localStorage.setItem("aisaac.dashboardToken", "read");
     stubFetch();
     render(<StackTab appId="unknown" />);
 
     expect(await screen.findByText("No stack map is available for this application.")).toBeTruthy();
+    window.localStorage.removeItem("aisaac.dashboardToken");
+  });
+
+  it("asks for the token when the stack map is withheld", async () => {
+    stubFetch();
+    render(<StackTab appId="unknown" />);
+
+    expect(await screen.findByText("Add the dashboard token in Settings to see the stack map.")).toBeTruthy();
   });
 });
