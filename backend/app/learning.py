@@ -91,6 +91,10 @@ def cloze(texts: list[str], terms: list[str]) -> list[dict]:
     return out
 
 
+def _blank(text: str, term: str) -> str:
+    return re.sub(rf"(?<!\w){re.escape(term)}(?!\w)", "_____", text, flags=re.I)
+
+
 def build(note: dict, day: date) -> dict:
     title, body = note["title"], note["body"]
     by_path = {r["path"]: r for r in note["links"] + note["backlinks"]}
@@ -120,9 +124,12 @@ def build(note: dict, day: date) -> dict:
             )
     questions += relations
 
+    # Portal index pages are navigation, not concepts; a summary that names its own note is
+    # blanked so the match can't be solved by reading the first word.
+    concepts = {p: r for p, r in by_path.items() if not p.endswith("/index.md")}
     pairs = [
-        {"path": p, "term": r["title"], "definition": note["previews"][p]}
-        for p, r in by_path.items()
+        {"path": p, "term": r["title"], "definition": _blank(note["previews"][p], r["title"])}
+        for p, r in concepts.items()
         if note["previews"].get(p)
     ][:MAX_MATCH]
     exercises: list[dict] = []
@@ -136,7 +143,7 @@ def build(note: dict, day: date) -> dict:
                 "options": sorted(p["definition"] for p in pairs),
             }
         )
-    linked = list(by_path.values())
+    linked = list(concepts.values())
     if len(linked) >= 2:
         a, b = linked[0]["title"], linked[1]["title"]
         exercises.append(

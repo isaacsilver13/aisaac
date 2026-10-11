@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import Markdown from "react-markdown";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { completeLearningModule, FinancialsAuthError, fetchGraph, fetchLearningModule } from "../api";
 import { linkWikilinks, noteHref, obsidianUrl } from "../components/dashboard/secondBrain";
@@ -34,7 +34,8 @@ function Module({ token, onAuthError }: { token: string; onAuthError: () => void
       }),
     [onAuthError],
   );
-  const mod = useAsyncData(useCallback(() => guarded(fetchLearningModule(token)), [guarded, token]));
+  const day = useSearchParams()[0].get("day") ?? "";
+  const mod = useAsyncData(useCallback(() => guarded(fetchLearningModule(token, day)), [guarded, token, day]));
   const graph = useAsyncData(useCallback(() => guarded(fetchGraph(token)), [guarded, token]));
 
   if (mod.error) return <EmptyState message={mod.error} />;

@@ -44,8 +44,8 @@ def _note(path, title, body):
 NOTES = [
     _note("knowledge/statistics/markov-chain.md", "Markov Chain", MARKOV),
     _note("knowledge/nlp/n-gram.md", "N-gram Language Model", "A word model.\n"),
-    _note("knowledge/nlp/tokenisation.md", "Tokenisation", "Splitting text into tokens.\n"),
-    _note("wikis/statistics/index.md", "Statistics", "Portal.\n"),
+    _note("knowledge/nlp/tokenisation.md", "Tokenisation", "Tokenisation splits text.\n"),
+    _note("wikis/statistics/index.md", "Statistics", "Portal for [[Markov Chain]].\n"),
     _note("projects/thing.md", "Thing", "Not study material.\n"),
 ]
 # The rotation is sorted paths of knowledge/ + wikis/ minus index pages:
@@ -105,7 +105,9 @@ def test_module_reading_questions_and_exercises():
     assert kinds == ["match", "explain", "investigate", "reflect"]  # My Understanding is empty
     match = m["exercises"][0]
     assert sorted(match["options"]) == match["options"]
+    # The backlinking portal page is not a match term, and no summary names its own note.
     assert {p["term"] for p in match["pairs"]} == {"N-gram Language Model", "Tokenisation"}
+    assert "_____ splits text." in match["options"]
     assert m["exercises"][2]["prompt"] == "How does smoothing handle zero-count bigrams?"
 
 
