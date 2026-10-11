@@ -1,4 +1,4 @@
-import type { NewShoeWatch, OwnResponse, NewsResponse, ShoesResponse, SportsResponse, NewsState, AutomationStatus, ConfigItem, MetricsHistory, AppLogs, Deployments, HealthHistory, HistoryRange, AgentSummary, CIEvent, DashboardResponse, FinancialSnapshot, Incident, Note, NoteListItem, Portal, RepoActivity, SecondBrainSummary, VaultGraph } from "./types";
+import type { NewShoeWatch, OwnResponse, NewsResponse, ShoesResponse, SportsResponse, NewsState, AutomationStatus, AutomationRun, ConfigItem, MetricsHistory, AppLogs, Deployments, HealthHistory, HistoryRange, AgentSummary, CIEvent, DashboardResponse, FinancialSnapshot, Incident, Note, NoteListItem, Portal, RepoActivity, SecondBrainSummary, VaultGraph } from "./types";
 import { readToken, readWriteToken } from "./token";
 
 export class FinancialsAuthError extends Error {}
@@ -145,6 +145,14 @@ export async function fetchAutomations(token: string): Promise<AutomationStatus[
   if (response.status === 401) throw new FinancialsAuthError("Invalid dashboard token.");
   if (!response.ok) throw new Error(`Automations request failed with HTTP ${response.status}.`);
   return (await response.json()) as AutomationStatus[];
+}
+
+export async function fetchAutomationRuns(token: string, id: string): Promise<AutomationRun[]> {
+  const response = await fetch(`/api/v1/automations/${encodeURIComponent(id)}/runs`, {
+    headers: { Accept: "application/json", "X-Dashboard-Token": token },
+  });
+  if (!response.ok) throw new Error(`Run history request failed with HTTP ${response.status}.`);
+  return (await response.json()) as AutomationRun[];
 }
 
 export async function fetchConfigStatus(token: string): Promise<ConfigItem[]> {

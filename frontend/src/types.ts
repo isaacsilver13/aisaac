@@ -224,7 +224,17 @@ export interface AutomationStatus {
   detail: string;
   last_run_at: string | null;
   expected_hours: number | null;
-  status: "ok" | "stale" | "never" | "disabled";
+  status: "ok" | "stale" | "failing" | "never" | "disabled";
+  next_expected_at: string | null;
+  overdue_hours: number | null;
+  last_error: string | null;
+  last_error_at: string | null;
+}
+
+export interface AutomationRun {
+  ran_at: string;
+  ok: boolean;
+  detail: string;
 }
 
 export interface ConfigItem {

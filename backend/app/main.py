@@ -228,6 +228,7 @@ def internal_metrics(source: str, payload: dict) -> None:
     try:
         parsed = model.model_validate(payload)
     except ValidationError as exc:
+        metrics_store.record_run(source, ok=False, error="invalid_payload")
         raise HTTPException(422, exc.errors(include_url=False, include_context=False)) from exc
     metrics_store.save(source, parsed.model_dump_json())
 
@@ -339,6 +340,7 @@ def get_runbook(app_id: str) -> str:
 )
 def second_brain_sync(payload: SecondBrainSyncIn) -> None:
     second_brain_store.replace_all(payload.meta, [n.model_dump() for n in payload.notes])
+    metrics_store.record_run("second-brain", ok=True)
 
 
 # --- Private news feed and daily digest -------------------------------------------------
@@ -569,6 +571,14 @@ def config_status() -> dict:
 @app.get("/api/v1/automations", dependencies=[Depends(_require_read_token)])
 def automations_status() -> list[dict]:
     return automations.snapshot(settings.health_poll_interval_seconds)
+
+
+@app.get("/api/v1/automations/{automation_id}/runs", dependencies=[Depends(_require_read_token)])
+def automation_runs(automation_id: str) -> list[dict]:
+    runs = automations.runs(automation_id)
+    if runs is None:
+        raise HTTPException(404, f"Unknown automation '{automation_id}'.")
+    return runs
 
 
 @app.get("/api/v1/second-brain/summary", dependencies=[Depends(_require_read_token)])
