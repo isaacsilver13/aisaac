@@ -24,6 +24,10 @@ CREATE TABLE IF NOT EXISTS notes (
 CREATE TABLE IF NOT EXISTS links (
     src TEXT NOT NULL, dst TEXT NOT NULL, PRIMARY KEY (src, dst)
 );
+-- Daily-learning completions; sync never clears this table.
+CREATE TABLE IF NOT EXISTS learning_progress (
+    day TEXT NOT NULL, path TEXT NOT NULL, completed_at TEXT NOT NULL, PRIMARY KEY (day, path)
+);
 CREATE TABLE IF NOT EXISTS meta (
     id INTEGER PRIMARY KEY CHECK (id = 1), payload TEXT NOT NULL, pushed_at TEXT NOT NULL
 );
@@ -217,3 +221,26 @@ def portals() -> list[dict]:
         if r["path"] == f"{pid}/index.md":
             p.update(index_path=r["path"], title=r["title"], description=_preview(r["body"]))
     return list(out.values())
+
+
+def paths() -> list[str]:
+    with _connect() as conn:
+        return [r["path"] for r in conn.execute("SELECT path FROM notes ORDER BY path")]
+
+
+def mark_studied(day: str, path: str) -> str:
+    now = datetime.now(timezone.utc).isoformat()
+    with _connect() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO learning_progress (day, path, completed_at) VALUES (?,?,?)",
+            (day, path, now),
+        )
+    return studied(day, path) or now
+
+
+def studied(day: str, path: str) -> Optional[str]:
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT completed_at FROM learning_progress WHERE day = ? AND path = ?", (day, path)
+        ).fetchone()
+    return row["completed_at"] if row else None

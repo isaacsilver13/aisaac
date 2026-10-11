@@ -572,3 +572,8 @@ button.tab-link { background: transparent; border-left: 0; border-right: 0; bord
 .kb-graph .dim { opacity: 0.12; }
 .kb-graph text { fill: var(--text); }
 @media (prefers-reduced-motion: reduce) { .kb-graph circle, .kb-graph line { transition: none; } }
+
+.learning-list { display: grid; gap: 14px; padding-left: 20px; }
+.learning-list details { color: var(--text-muted); }
+.learning-match { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+.learning-match select { background: transparent; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); max-width: 100%; padding: 6px 8px; }

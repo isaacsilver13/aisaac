@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
@@ -234,3 +234,10 @@ class SecondBrainSyncIn(BaseModel):
 
     meta: dict[str, Any] = {}
     notes: list[NoteIn]
+
+
+class LearningProgressIn(BaseModel):
+    """Marks one day's learning module done. `path` must be that day's rotation pick."""
+
+    day: date
+    path: str
