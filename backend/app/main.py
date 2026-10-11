@@ -288,9 +288,17 @@ def list_agents() -> list[AgentSummary]:
 
 
 @app.get("/api/v1/analytics", response_model=list[RepoActivity])
-async def analytics(force_refresh: bool = Query(default=False)) -> list[RepoActivity]:
-    repos = get_repos()
-    return await github_monitor.activity(repos, force_refresh=force_refresh)
+async def analytics(
+    force_refresh: bool = Query(default=False),
+    x_dashboard_token: Optional[str] = Header(default=None),
+) -> list[RepoActivity]:
+    activity = await github_monitor.activity(get_repos(), force_refresh=force_refresh)
+    # Private repos (titles, PRs, languages) are only shown to holders of the read token.
+    if settings.dashboard_read_token and _secrets_match(
+        x_dashboard_token, settings.dashboard_read_token
+    ):
+        return activity
+    return [repo for repo in activity if not repo.private]
 
 
 @app.post("/internal/ci-report", status_code=204, dependencies=[Depends(_require_internal_secret)])

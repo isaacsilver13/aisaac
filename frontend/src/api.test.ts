@@ -108,6 +108,17 @@ describe("fetchAnalytics", () => {
     });
   });
 
+  it("sends the read token when one is saved so private repos are included", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify([]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await fetchAnalytics(false, "read-token");
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/analytics", {
+      headers: { Accept: "application/json", "X-Dashboard-Token": "read-token" },
+    });
+  });
+
   it("turns a failed response into a user-safe error", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("secret body", { status: 502 })));
 

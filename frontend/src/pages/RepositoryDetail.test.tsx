@@ -7,6 +7,8 @@ import RepositoryDetail from "./RepositoryDetail";
 const repo = {
   repo_id: "a", name: "Alpha", owner: "me", repo: "alpha", category: "c", ci_status: "success", detail: null,
   open_pr_count: 1, open_issue_count: 0, commits_last_7d: 4, last_commit_at: null,
+  private: false, description: null, language: "Python", pushed_at: null,
+  languages: { Python: 10 }, commit_weeks: [], pull_request_history: [],
   open_pull_requests: [{ number: 9, title: "Add thing", url: "https://x", opened_at: "2026-10-01T00:00:00Z", stale: false }],
 };
 
@@ -34,6 +36,6 @@ describe("RepositoryDetail", () => {
 
   it("says so for an untracked repo", async () => {
     renderAt("/github/repositories/zzz");
-    expect(await screen.findByText("That repository is not tracked.")).toBeTruthy();
+    expect(await screen.findByText(/That repository is not tracked/)).toBeTruthy();
   });
 });

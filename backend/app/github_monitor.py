@@ -6,8 +6,15 @@ from datetime import datetime, timezone
 
 import httpx
 
-from . import github_client
-from .schemas import CiStatus, PullRequestSummary, RepoActivity, RepoDefinition
+from . import github_client, github_registry
+from .schemas import (
+    CiStatus,
+    CommitWeek,
+    PullRequestDates,
+    PullRequestSummary,
+    RepoActivity,
+    RepoDefinition,
+)
 
 
 def _ci_status(status: str | None, conclusion: str | None) -> CiStatus:
@@ -33,11 +40,18 @@ class GitHubMonitor:
         self, repos: tuple[RepoDefinition, ...], force_refresh: bool = False
     ) -> list[RepoActivity]:
         now = time.monotonic()
-        if not force_refresh and self._cache and now - self._cache[0] < self.cache_ttl_seconds:
+        age = now - self._cache[0] if self._cache else None
+        # A forced refresh still reuses data under 30s old: the endpoint is public and each
+        # refresh costs several GitHub calls per repo.
+        if age is not None and age < (30.0 if force_refresh else self.cache_ttl_seconds):
             return [activity.model_copy(update={"cached": True}) for activity in self._cache[1]]
 
-        enabled_repos = [repo for repo in repos if repo.enabled]
         async with httpx.AsyncClient(follow_redirects=True) as client:
+            listing = await github_client.list_owner_repos(
+                client, self.token, github_registry.GITHUB_OWNER, self.timeout_seconds
+            )
+            repos = github_registry.merge_discovered(repos, listing)
+            enabled_repos = [repo for repo in repos if repo.enabled]
             results = list(
                 await asyncio.gather(*(self._check_repo(client, repo) for repo in enabled_repos))
             )
@@ -47,13 +61,25 @@ class GitHubMonitor:
     async def _check_repo(self, client: httpx.AsyncClient, repo: RepoDefinition) -> RepoActivity:
         checked_at = datetime.now(timezone.utc)
         owner, name, timeout = repo.owner, repo.repo, self.timeout_seconds
-        run_status, issue_count, pull_requests, commit_activity = await asyncio.gather(
+        (
+            run_status,
+            issue_count,
+            pull_requests,
+            commit_activity,
+            commit_weeks,
+            languages,
+        ) = await asyncio.gather(
             github_client.get_latest_run_status(client, self.token, owner, name, timeout),
             github_client.get_open_issue_count(client, self.token, owner, name, timeout),
-            github_client.get_open_pull_requests(
-                client, self.token, owner, name, timeout, repo.stale_days
-            ),
+            github_client.get_pull_requests(client, self.token, owner, name, timeout),
             github_client.get_commit_activity(client, self.token, owner, name, timeout),
+            github_client.get_weekly_commits(client, self.token, owner, name, timeout),
+            github_client.get_languages(client, self.token, owner, name, timeout),
+        )
+        open_pull_requests = (
+            None
+            if pull_requests is None
+            else github_client.summarize_open_pull_requests(pull_requests, repo.stale_days)
         )
 
         ci_status: CiStatus = "unknown"
@@ -75,10 +101,23 @@ class GitHubMonitor:
             repo=repo.repo,
             ci_status=ci_status,
             open_issue_count=issue_count,
-            open_pr_count=None if pull_requests is None else len(pull_requests),
-            open_pull_requests=[PullRequestSummary(**pr) for pr in (pull_requests or [])],
+            open_pr_count=None if open_pull_requests is None else len(open_pull_requests),
+            open_pull_requests=[PullRequestSummary(**pr) for pr in (open_pull_requests or [])],
             commits_last_7d=commits_last_7d,
             last_commit_at=last_commit_at,
             checked_at=checked_at,
             detail=detail,
+            private=repo.private,
+            description=repo.description,
+            language=repo.language,
+            pushed_at=repo.pushed_at,
+            languages=languages or {},
+            commit_weeks=[
+                CommitWeek(week=datetime.fromtimestamp(w["week"], timezone.utc), days=w["days"])
+                for w in (commit_weeks or [])
+            ],
+            pull_request_history=[
+                PullRequestDates(**pr)
+                for pr in github_client.pull_request_history(pull_requests or [])
+            ],
         )
