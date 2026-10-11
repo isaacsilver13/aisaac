@@ -2,12 +2,13 @@ import { useEffect, useState, type FormEvent } from "react";
 
 import { FinancialsAuthError, fetchFinancials } from "../../api";
 import { readToken, writeToken } from "../../token";
-import type { ClaudeUsage, CodexUsage, FinancialSnapshot, NeonUsage, ProviderCost, UsageWindow } from "../../types";
+import type { ClaudeUsage, CodexUsage, FinancialSnapshot, HostingCostRow, UsageWindow } from "../../types";
 import { Badge } from "../primitives/Badge";
 import { Card } from "../primitives/Card";
 import { EmptyState } from "../primitives/EmptyState";
 import { Skeleton } from "../primitives/Skeleton";
 import { Stat } from "../primitives/Stat";
+import { Table, type Column } from "../primitives/Table";
 import {
   COST_STALE_MS,
   USAGE_STALE_MS,
@@ -19,11 +20,11 @@ import {
   usageTone,
 } from "./financials";
 
-function UsageMeter({ label, window: win, stale }: { label: string; window: UsageWindow; stale: boolean }) {
+function UsageRow({ label, window: win }: { label: string; window: UsageWindow }) {
   const tone = usageTone(win.used_pct);
   return (
-    <Card>
-      <Stat label={label} value={`${win.used_pct.toFixed(0)}%`} />
+    <li className="ai-usage-row">
+      <span>{label}</span>
       <div
         className={`usage-meter usage-meter-${tone}`}
         role="progressbar"
@@ -34,104 +35,122 @@ function UsageMeter({ label, window: win, stale }: { label: string; window: Usag
       >
         <div style={{ width: `${Math.min(100, win.used_pct)}%` }} />
       </div>
-      <div className="ui-stat-label" style={{ marginTop: 10 }}>
-        Resets in {formatTimeUntil(win.resets_at)} ({formatResetAt(win.resets_at)})
-      </div>
-      {stale && <Badge tone="warning" style={{ marginTop: 8 }}>Stale</Badge>}
-    </Card>
+      <span className="ai-usage-num">{`${win.used_pct.toFixed(0)}%`}</span>
+      <span className="ai-usage-num ai-usage-reset" title={`Resets ${formatResetAt(win.resets_at)}`}>
+        {formatTimeUntil(win.resets_at)}
+      </span>
+    </li>
   );
 }
 
-function CostCard({ label, cost }: { label: string; cost: ProviderCost | null }) {
-  if (!cost) {
-    return (
-      <Card>
-        <Stat label={label} value="--" />
-        <div className="ui-stat-label" style={{ marginTop: 10 }}>Not reporting</div>
-      </Card>
-    );
-  }
-  const apps = Object.entries(cost.by_app).sort((a, b) => b[1] - a[1]);
+function NotReportingRow({ label }: { label: string }) {
+  return (
+    <li className="ai-usage-row">
+      <span>{label}</span>
+      <span className="ui-stat-label">Not reporting</span>
+    </li>
+  );
+}
+
+function AiUsageCard({ claude, codex }: { claude: ClaudeUsage | null; codex: CodexUsage | null }) {
+  const stale = [
+    claude && isStale(claude.reported_at, USAGE_STALE_MS) ? "Claude" : null,
+    codex && isStale(codex.reported_at, USAGE_STALE_MS) ? "Codex" : null,
+  ].filter(Boolean);
   return (
     <Card>
-      <Stat label={`${label} · ${cost.period}`} value={formatUsd(cost.total_usd)} />
-      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-        {cost.estimated && <Badge tone="info">Estimate</Badge>}
-        {isStale(cost.reported_at, COST_STALE_MS) && <Badge tone="warning">Stale</Badge>}
+      <div className="ai-usage-head">
+        <span className="ui-stat-label">AI usage</span>
+        <span className="ui-stat-label">Resets in</span>
       </div>
-      <ul className="cost-by-app">
-        {apps.map(([app, usd]) => (
-          <li key={app}>
-            <span>{app}</span>
-            <span>{formatUsd(usd)}</span>
-          </li>
-        ))}
+      <ul className="ai-usage">
+        {claude ? (
+          <>
+            <UsageRow label="Claude 5h" window={claude.session} />
+            <UsageRow label="Claude 7d" window={claude.weekly} />
+          </>
+        ) : (
+          <NotReportingRow label="Claude" />
+        )}
+        {codex ? (
+          <>
+            <UsageRow label="Codex" window={codex.primary} />
+            {codex.secondary && <UsageRow label="Codex weekly" window={codex.secondary} />}
+          </>
+        ) : (
+          <NotReportingRow label="Codex" />
+        )}
       </ul>
+      {stale.length > 0 && <Badge tone="warning" style={{ marginTop: 10 }}>Stale: {stale.join(", ")}</Badge>}
     </Card>
   );
 }
 
-function NeonCard({ usage }: { usage: NeonUsage | null }) {
-  if (!usage) {
+const HOSTING_COLUMNS: Column<HostingCostRow>[] = [
+  { key: "app", header: "App", render: (r) => r.name, sortValue: (r) => r.name.toLowerCase() },
+  {
+    key: "fly",
+    header: "Fly.io",
+    align: "right",
+    sortValue: (r) => r.fly_usd,
+    render: (r) =>
+      r.fly_usd === null ? "--" : (
+        <>
+          {formatUsd(r.fly_usd)}
+          {r.fly_hours !== null && <span className="cost-sub">{formatHours(r.fly_hours)} up</span>}
+        </>
+      ),
+  },
+  {
+    key: "neon",
+    header: "Neon",
+    align: "right",
+    sortValue: (r) => r.neon_hours,
+    render: (r) =>
+      r.neon_hours === null ? "--" : (
+        <>
+          {r.neon_usd === null ? formatHours(r.neon_hours) : formatUsd(r.neon_usd)}
+          <span className="cost-sub">
+            {r.neon_allowance_pct === null
+              ? "compute"
+              : `${formatHours(r.neon_hours)} · ${r.neon_allowance_pct.toFixed(0)}% of free`}
+          </span>
+        </>
+      ),
+  },
+  { key: "total", header: "Total", align: "right", sortValue: (r) => r.total_usd, render: (r) => formatUsd(r.total_usd) },
+];
+
+function HostingCostCard({ snapshot }: { snapshot: FinancialSnapshot }) {
+  const { fly, neon, hosting, hosting_total_usd: total } = snapshot;
+  if (!fly && !neon) {
     return (
       <Card>
-        <Stat label="Neon" value="--" />
+        <Stat label="Hosting costs" value="--" />
         <div className="ui-stat-label" style={{ marginTop: 10 }}>Not reporting</div>
       </Card>
     );
   }
-  const apps = Object.entries(usage.by_app).sort((a, b) => b[1] - a[1]);
+  const stale = [fly, neon].some((source) => source && isStale(source.reported_at, COST_STALE_MS));
+  const invoice = fly?.invoice_total_usd;
+  const notes = [
+    fly ? null : "Fly.io not reporting.",
+    neon ? null : "Neon not reporting.",
+    neon && (neon.free_hours_per_project ? "Neon Free plan: $0." : "Neon plan not on Free: hours only."),
+    fly && invoice != null
+      ? `Fly billing page says ${formatUsd(invoice)}; ${formatUsd(Math.max(0, invoice - fly.total_usd))} of that isn't app usage.`
+      : null,
+  ].filter(Boolean);
   return (
     <Card>
-      <Stat label={`Neon compute · ${usage.period}`} value={formatHours(usage.total_compute_hours)} />
-      {isStale(usage.reported_at, COST_STALE_MS) && (
-        <Badge tone="warning" style={{ marginTop: 8 }}>Stale</Badge>
-      )}
-      <ul className="cost-by-app">
-        {apps.map(([app, hours]) => (
-          <li key={app}>
-            <span>{app}</span>
-            <span>{formatHours(hours)}</span>
-          </li>
-        ))}
-      </ul>
+      <Stat label={`Hosting · ${fly?.period ?? neon?.period}`} value={total === null ? "--" : formatUsd(total)} />
+      <div style={{ display: "flex", gap: 6, margin: "8px 0" }}>
+        {fly && <Badge tone="info">Fly estimate</Badge>}
+        {stale && <Badge tone="warning">Stale</Badge>}
+      </div>
+      <Table columns={HOSTING_COLUMNS} rows={hosting} rowKey={(r) => r.key} emptyMessage="No apps reported." />
+      {notes.length > 0 && <p className="cost-notes">{notes.join(" ")}</p>}
     </Card>
-  );
-}
-
-function ClaudeUsageCards({ usage }: { usage: ClaudeUsage | null }) {
-  if (!usage) {
-    return (
-      <Card>
-        <Stat label="Claude usage" value="--" />
-        <div className="ui-stat-label" style={{ marginTop: 10 }}>Not reporting</div>
-      </Card>
-    );
-  }
-  const stale = isStale(usage.reported_at, USAGE_STALE_MS);
-  return (
-    <>
-      <UsageMeter label="Claude session" window={usage.session} stale={stale} />
-      <UsageMeter label="Claude weekly" window={usage.weekly} stale={stale} />
-    </>
-  );
-}
-
-function CodexUsageCards({ usage }: { usage: CodexUsage | null }) {
-  if (!usage) {
-    return (
-      <Card>
-        <Stat label="Codex usage" value="--" />
-        <div className="ui-stat-label" style={{ marginTop: 10 }}>Not reporting</div>
-      </Card>
-    );
-  }
-  const stale = isStale(usage.reported_at, USAGE_STALE_MS);
-  return (
-    <>
-      <UsageMeter label="Codex primary" window={usage.primary} stale={stale} />
-      {usage.secondary && <UsageMeter label="Codex secondary" window={usage.secondary} stale={stale} />}
-    </>
   );
 }
 
@@ -199,10 +218,8 @@ export function FinancialsPanel() {
 
   return (
     <section aria-label="Usage and costs" className="financials-row">
-      <ClaudeUsageCards usage={snapshot.claude} />
-      <CodexUsageCards usage={snapshot.codex} />
-      <NeonCard usage={snapshot.neon} />
-      <CostCard label="Fly.io" cost={snapshot.fly} />
+      <AiUsageCard claude={snapshot.claude} codex={snapshot.codex} />
+      <HostingCostCard snapshot={snapshot} />
     </section>
   );
 }

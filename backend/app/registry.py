@@ -95,6 +95,7 @@ _REGISTRY: Mapping[str, tuple[AppDefinition, ...]] = {
         AppDefinition(
             id="vinyl",
             fly_app="vinyl-catalog",
+            cost_aliases=("vinyl-api",),
             name="Vinyl Catalog",
             category="Collection",
             description="Record collection and wantlist management.",
@@ -112,6 +113,7 @@ _REGISTRY: Mapping[str, tuple[AppDefinition, ...]] = {
         AppDefinition(
             id="nfl-confidence",
             fly_app="nfl-confidence-web",
+            cost_aliases=("nfl-confidence-web-dev",),
             name="NFL Confidence",
             category="Sports",
             description="Weekly NFL confidence picks and league standings.",

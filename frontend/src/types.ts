@@ -123,6 +123,8 @@ export interface ProviderCost {
   period: string;
   total_usd: number;
   by_app: Record<string, number>;
+  machine_hours?: Record<string, number>;
+  invoice_total_usd?: number | null;
   estimated: boolean;
   reported_at: string;
 }
@@ -131,7 +133,21 @@ export interface NeonUsage {
   period: string;
   total_compute_hours: number;
   by_app: Record<string, number>;
+  plan?: string | null;
+  free_hours_per_project?: number | null;
   reported_at: string;
+}
+
+/** One registry app's Fly + Neon figures (or an unmapped Fly app / Neon project). */
+export interface HostingCostRow {
+  key: string;
+  name: string;
+  fly_usd: number | null;
+  fly_hours: number | null;
+  neon_usd: number | null;
+  neon_hours: number | null;
+  neon_allowance_pct: number | null;
+  total_usd: number;
 }
 
 export interface FinancialSnapshot {
@@ -139,6 +155,8 @@ export interface FinancialSnapshot {
   codex: CodexUsage | null;
   neon: NeonUsage | null;
   fly: ProviderCost | null;
+  hosting: HostingCostRow[];
+  hosting_total_usd: number | null;
   detail: string | null;
 }
 

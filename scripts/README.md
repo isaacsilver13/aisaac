@@ -30,22 +30,31 @@ only window percentages, reset times, and the plan label; it does not send crede
 ## Neon compute hours per project — `push_neon_usage.py`
 
 Neon's API reports usage, not dollars. Needs `NEON_API_KEY` (and `NEON_ORG_ID` for org projects).
-Tries the v2 consumption endpoint, then the legacy one. Schedule daily:
+Tries the v2 consumption endpoint, then the legacy one, then the per-project counters. It also
+pushes the account plan (read from the API, or `--plan free`); on Free the dashboard shows $0 and
+each project's hours as a share of the 100 CU-hour allowance. Schedule daily:
 `python scripts/push_neon_usage.py` (`--dry-run` to preview).
 
-## Fly.io monthly cost — `push_fly_costs.py`
+## Fly.io cost per app — `push_fly_costs.py`
 
-Fly has no billing API, so per-app figures are **estimates** from the `fly` CLI (machine run time,
-volumes, dedicated IPs). Give it the real month-to-date total from the dashboard's invoice preview:
+Fly has no billing API, so per-app dollars are **estimates**: each machine's measured run time from
+Fly's managed Prometheus (`fly_instance_up`, 15s samples) × its size at published rates, plus
+volumes and dedicated IPv4. Uses `FLY_API_TOKEN` if set (a read-only org token is enough), else your
+`fly` CLI login. Not counted: stopped machines' root filesystem, egress, and non-app charges.
+
+Prometheus keeps only recent days, so **schedule it daily**; finished days are cached in
+`~/.claude/aisaac_fly_invoice.json` so the month stays complete:
 
 ```
-python scripts/push_fly_costs.py --invoice-total 10.30
+python scripts/push_fly_costs.py [--invoice-total 10.30] [--dry-run]
 ```
 
-The total is remembered for the month, so a scheduled `python scripts/push_fly_costs.py` keeps the
-estimates fresh. Any gap between the estimates and the invoice shows as `(unattributed)`.
-Autostopped machines have little event history, so compute is undercounted; expect most of the
-invoice to land in `(unattributed)` until you refine the estimate.
+`--invoice-total` (the month-to-date figure on Fly's billing page) is remembered for the month and
+shown next to the estimate, with the gap labelled; it is never spread across apps.
+
+Fly apps and Neon projects map to dashboard apps by registry `id`, `fly_app` or `cost_aliases`
+in `backend/app/registry.py`. After the first Neon run, add an alias for any project whose name
+doesn't match an app id.
 
 ## second_brain_push.py
 

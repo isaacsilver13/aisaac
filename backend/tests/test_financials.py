@@ -99,3 +99,36 @@ def test_fly_cost_defaults_to_estimated_and_neon_rejects_dollar_payload():
     _push("fly", COST)
     assert _read().json()["fly"]["estimated"] is True
     assert _push("neon", COST).status_code == 422
+
+
+def test_hosting_rows_fold_fly_apps_and_neon_projects_into_registry_apps():
+    _push("fly", {
+        "period": "2026-10", "total_usd": 0.4,
+        "by_app": {"vinyl-catalog": 0.1, "vinyl-api": 0.2, "aisaac-dashboard": 0.1},
+        "machine_hours": {"vinyl-catalog": 1.0, "vinyl-api": 2.0},
+        "invoice_total_usd": 17.75,
+    })
+    _push("neon", {
+        "period": "2026-10", "total_compute_hours": 30.0,
+        "by_app": {"vinyl": 25.0, "gym-tracker": 5.0},
+        "plan": "free_v3", "free_hours_per_project": 100.0,
+    })
+    body = _read().json()
+    rows = {r["key"]: r for r in body["hosting"]}
+    assert rows["vinyl"]["name"] == "Vinyl Catalog"
+    assert rows["vinyl"]["fly_usd"] == 0.3
+    assert rows["vinyl"]["fly_hours"] == 3.0
+    assert rows["vinyl"]["neon_usd"] == 0.0
+    assert rows["vinyl"]["neon_allowance_pct"] == 25.0
+    assert rows["gym-tracker"]["fly_usd"] is None
+    assert rows["aisaac-dashboard"]["name"] == "aisaac-dashboard"  # unmapped keeps its row
+    assert body["hosting"][0]["key"] == "vinyl"  # most expensive first
+    assert body["hosting_total_usd"] == 0.4
+    assert body["fly"]["invoice_total_usd"] == 17.75
+
+
+def test_neon_without_free_plan_has_no_dollars():
+    _push("neon", {**NEON, "plan": "launch"})
+    body = _read().json()
+    assert all(r["neon_usd"] is None for r in body["hosting"])
+    assert body["hosting_total_usd"] is None

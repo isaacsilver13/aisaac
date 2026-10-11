@@ -27,15 +27,24 @@ function makeSnapshot(overrides: Partial<FinancialSnapshot> = {}): FinancialSnap
       period: "2026-09",
       total_compute_hours: 12.5,
       by_app: { vinyl: 10, "gym-tracker": 2.5 },
+      plan: "free_v3",
+      free_hours_per_project: 100,
       reported_at: reported,
     },
     fly: {
       period: "2026-09",
-      total_usd: 10.3,
-      by_app: { "vinyl-api": 0.15, "(unattributed)": 10.15 },
+      total_usd: 0.3,
+      by_app: { "vinyl-api": 0.15, "vinyl-catalog": 0.15 },
+      machine_hours: { "vinyl-api": 1, "vinyl-catalog": 2 },
+      invoice_total_usd: 10.3,
       estimated: true,
       reported_at: reported,
     },
+    hosting: [
+      { key: "vinyl", name: "Vinyl Catalog", fly_usd: 0.3, fly_hours: 3, neon_usd: 0, neon_hours: 10, neon_allowance_pct: 10, total_usd: 0.3 },
+      { key: "gym-tracker", name: "Gym Tracker", fly_usd: null, fly_hours: null, neon_usd: 0, neon_hours: 2.5, neon_allowance_pct: 2.5, total_usd: 0 },
+    ],
+    hosting_total_usd: 0.3,
     detail: null,
     ...overrides,
   };
@@ -99,12 +108,14 @@ describe("FinancialsPanel", () => {
     expect(await screen.findByText("42%")).toBeInTheDocument();
     expect(screen.getByText("80%")).toBeInTheDocument();
     expect(screen.getByText("4%")).toBeInTheDocument();
-    expect(screen.getByText("12.5 h")).toBeInTheDocument();
-    expect(screen.getByText("2.50 h")).toBeInTheDocument();
-    expect(screen.getByText("vinyl")).toBeInTheDocument();
-    expect(screen.getByText("$10.30")).toBeInTheDocument();
-    expect(screen.getByText("(unattributed)")).toBeInTheDocument();
-    expect(screen.getByText("Estimate")).toBeInTheDocument();
+    expect(screen.getAllByRole("progressbar")).toHaveLength(3);
+    expect(screen.getByText("Vinyl Catalog")).toBeInTheDocument();
+    expect(screen.getByText("Gym Tracker")).toBeInTheDocument();
+    expect(screen.getByText("3.00 h up")).toBeInTheDocument();
+    expect(screen.getByText("10.0 h · 10% of free")).toBeInTheDocument();
+    expect(screen.getAllByText("$0.30").length).toBeGreaterThan(0);
+    expect(screen.getByText("Fly estimate")).toBeInTheDocument();
+    expect(screen.getByText(/billing page says \$10\.30; \$10\.00 of that/)).toBeInTheDocument();
     expect(window.localStorage.getItem("aisaac.dashboardToken")).toBe("secret");
   });
 
@@ -112,10 +123,11 @@ describe("FinancialsPanel", () => {
     window.localStorage.setItem("aisaac.dashboardToken", "secret");
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(new Response(JSON.stringify(makeSnapshot({ fly: null })), { status: 200 })),
+      vi.fn().mockResolvedValue(new Response(JSON.stringify(makeSnapshot({ codex: null, fly: null })), { status: 200 })),
     );
     render(<FinancialsPanel />);
     expect(await screen.findByText("Not reporting")).toBeInTheDocument();
+    expect(screen.getByText(/Fly\.io not reporting/)).toBeInTheDocument();
   });
 
   it("clears a rejected token and re-prompts", async () => {

@@ -45,6 +45,7 @@ from .monitoring import Monitor
 from .registry import STACKS, get_registry
 from .schemas import (
     AgentSummary,
+    AppDefinition,
     AppInfo,
     CIEventOut,
     CIReportIn,
@@ -54,6 +55,7 @@ from .schemas import (
     CodexUsageOut,
     DashboardResponse,
     FinancialSnapshot,
+    HostingCostRow,
     IncidentOut,
     LearningProgressIn,
     NeonUsageIn,
@@ -235,6 +237,53 @@ def internal_metrics(source: str, payload: dict) -> None:
     metrics_store.save(source, parsed.model_dump_json())
 
 
+def hosting_breakdown(
+    apps: tuple[AppDefinition, ...],
+    fly: Optional[ProviderCostOut],
+    neon: Optional[NeonUsageOut],
+) -> tuple[list[HostingCostRow], Optional[float]]:
+    """Fold pushed Fly apps and Neon projects into one row per registry app.
+
+    A source belongs to an app when its name is the app's id, fly_app or a cost alias;
+    anything else keeps its own row so no cost is hidden.
+    """
+    owner = {name: a for a in apps for name in (a.id, a.fly_app, *a.cost_aliases) if name}
+    rows: dict[str, HostingCostRow] = {}
+
+    def row(source: str) -> HostingCostRow:
+        a = owner.get(source)
+        key, name = (a.id, a.name) if a else (source, source)
+        return rows.setdefault(key, HostingCostRow(key=key, name=name))
+
+    if fly:
+        for source, usd in fly.by_app.items():
+            r = row(source)
+            r.fly_usd = (r.fly_usd or 0.0) + usd
+            if source in fly.machine_hours:
+                r.fly_hours = (r.fly_hours or 0.0) + fly.machine_hours[source]
+    allowance = neon.free_hours_per_project if neon else None
+    if neon:
+        for source, hours in neon.by_app.items():
+            r = row(source)
+            r.neon_hours = (r.neon_hours or 0.0) + hours
+            if allowance:
+                # Free plan: exactly $0; the allowance is per project, so show the fullest one.
+                r.neon_usd = 0.0
+                pct = 100 * hours / allowance
+                r.neon_allowance_pct = max(r.neon_allowance_pct or 0.0, pct)
+    for r in rows.values():
+        if r.fly_usd is not None:
+            r.fly_usd = round(r.fly_usd, 2)
+        if r.fly_hours is not None:
+            r.fly_hours = round(r.fly_hours, 2)
+        if r.neon_hours is not None:
+            r.neon_hours = round(r.neon_hours, 3)
+        r.total_usd = round((r.fly_usd or 0.0) + (r.neon_usd or 0.0), 2)
+    ordered = sorted(rows.values(), key=lambda r: (-r.total_usd, r.name.lower()))
+    total = round(sum(r.total_usd for r in ordered), 2) if (fly or allowance) else None
+    return ordered, total
+
+
 @app.get(
     "/api/v1/command-center/financials",
     response_model=FinancialSnapshot,
@@ -258,11 +307,15 @@ def financials() -> FinancialSnapshot:
         for name, value in (("claude", claude), ("codex", codex), ("neon", neon), ("fly", fly))
         if value is None
     ]
+    # Costs map onto production apps whatever profile this deployment checks.
+    hosting, hosting_total = hosting_breakdown(get_registry("production"), fly, neon)
     return FinancialSnapshot(
         claude=claude,
         codex=codex,
         neon=neon,
         fly=fly,
+        hosting=hosting,
+        hosting_total_usd=hosting_total,
         detail=f"No data reported yet for: {', '.join(missing)}." if missing else None,
     )
 
