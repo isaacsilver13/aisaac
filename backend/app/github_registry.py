@@ -65,6 +65,13 @@ _REPOS: tuple[RepoDefinition, ...] = (
         owner="isaacsilver13",
         repo="chess",
     ),
+    RepoDefinition(
+        id="nba-teammates-chain",
+        name="NBA Teammates Chain",
+        category="Games",
+        owner="isaacsilver13",
+        repo="nba_teammates_chain",
+    ),
 )
 
 

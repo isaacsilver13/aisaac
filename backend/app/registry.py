@@ -90,6 +90,15 @@ _REGISTRY: Mapping[str, tuple[AppDefinition, ...]] = {
             product_url="http://127.0.0.1:5173",
             health_url="http://127.0.0.1:3000/api/health",
         ),
+        AppDefinition(
+            id="nba-teammates-chain",
+            name="NBA Teammates Chain",
+            category="Games",
+            description="Daily NBA teammate-chain puzzle with shareable challenges.",
+            product_url="http://127.0.0.1:5178",
+            health_url="http://127.0.0.1:8007/api/v1/health",
+            readiness_url="http://127.0.0.1:8007/api/v1/health/ready",
+        ),
     ),
     "production": (
         AppDefinition(
@@ -189,6 +198,16 @@ _REGISTRY: Mapping[str, tuple[AppDefinition, ...]] = {
             description="Play Stockfish bots, with post-game review and progress tracking.",
             product_url="https://aisaac-chess.fly.dev/",
             health_url="https://aisaac-chess.fly.dev/api/health",
+        ),
+        AppDefinition(
+            id="nba-teammates-chain",
+            fly_app="nba-teammates-chain-api",
+            name="NBA Teammates Chain",
+            category="Games",
+            description="Daily NBA teammate-chain puzzle with shareable challenges.",
+            product_url="https://nba-teammates-chain-api.fly.dev/",
+            health_url="https://nba-teammates-chain-api.fly.dev/api/v1/health",
+            readiness_url="https://nba-teammates-chain-api.fly.dev/api/v1/health/ready",
         ),
     ),
 }
@@ -299,6 +318,24 @@ STACKS: Mapping[str, AppStack] = {
             ),
         ),
         monitoring="Public health check only; no metrics exposed",
+    ),
+    "nba-teammates-chain": AppStack(
+        description="One Fly app serves the game UI and API; AIsaac probes health and readiness.",
+        region="ewr",
+        nodes=(
+            _node("ui", "Chain game", "React 18 · Vite 6", "nba-teammates-chain-api"),
+            _node(
+                "api", "Game API", "FastAPI · SQLAlchemy 2.0", "nba-teammates-chain-api"
+            ),
+            _node(
+                "database",
+                "Players + teammate graph",
+                "PostgreSQL",
+                "Neon",
+                "psycopg 3 · loaded into memory at startup",
+            ),
+        ),
+        monitoring="Public health and readiness checks; no metrics exposed",
     ),
 }
 
