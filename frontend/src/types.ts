@@ -60,6 +60,24 @@ export interface RepoActivity {
   checked_at: string;
   cached: boolean;
   detail: string | null;
+  private: boolean;
+  description: string | null;
+  language: string | null;
+  pushed_at: string | null;
+  languages: Record<string, number>;
+  commit_weeks: CommitWeek[];
+  pull_request_history: PullRequestDates[];
+}
+
+/** One GitHub stats week: Sunday 00:00 UTC, then commits per day starting Sunday. */
+export interface CommitWeek {
+  week: string;
+  days: number[];
+}
+
+export interface PullRequestDates {
+  opened_at: string;
+  merged_at: string | null;
 }
 
 export interface AgentSummary {
@@ -105,6 +123,8 @@ export interface ProviderCost {
   period: string;
   total_usd: number;
   by_app: Record<string, number>;
+  machine_hours?: Record<string, number>;
+  invoice_total_usd?: number | null;
   estimated: boolean;
   reported_at: string;
 }
@@ -113,7 +133,21 @@ export interface NeonUsage {
   period: string;
   total_compute_hours: number;
   by_app: Record<string, number>;
+  plan?: string | null;
+  free_hours_per_project?: number | null;
   reported_at: string;
+}
+
+/** One registry app's Fly + Neon figures (or an unmapped Fly app / Neon project). */
+export interface HostingCostRow {
+  key: string;
+  name: string;
+  fly_usd: number | null;
+  fly_hours: number | null;
+  neon_usd: number | null;
+  neon_hours: number | null;
+  neon_allowance_pct: number | null;
+  total_usd: number;
 }
 
 export interface FinancialSnapshot {
@@ -121,6 +155,8 @@ export interface FinancialSnapshot {
   codex: CodexUsage | null;
   neon: NeonUsage | null;
   fly: ProviderCost | null;
+  hosting: HostingCostRow[];
+  hosting_total_usd: number | null;
   detail: string | null;
 }
 
@@ -224,7 +260,17 @@ export interface AutomationStatus {
   detail: string;
   last_run_at: string | null;
   expected_hours: number | null;
-  status: "ok" | "stale" | "never" | "disabled";
+  status: "ok" | "stale" | "failing" | "never" | "disabled";
+  next_expected_at: string | null;
+  overdue_hours: number | null;
+  last_error: string | null;
+  last_error_at: string | null;
+}
+
+export interface AutomationRun {
+  ran_at: string;
+  ok: boolean;
+  detail: string;
 }
 
 export interface ConfigItem {
@@ -234,13 +280,40 @@ export interface ConfigItem {
   configured: boolean;
 }
 
-export interface MetricsHistory {
-  app_id: string;
-  range: HistoryRange;
-  series: Record<string, { t: string; value: number }[]>;
+export type StackNodeKind = "ui" | "api" | "job" | "database" | "provider";
+
+export interface StackNode {
+  kind: StackNodeKind;
+  name: string;
+  tech: string;
+  /** Nodes sharing a host render inside one hosting boundary. */
+  host: string | null;
+  detail: string;
 }
 
-export type NewsState = "new" | "saved" | "dismissed";
+export interface AppStack {
+  description: string;
+  region: string | null;
+  nodes: StackNode[];
+  monitoring: string;
+}
+
+/** Public registry entry from /api/v1/apps. */
+export interface AppInfo {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  product_url: string | null;
+  health_url: string | null;
+  readiness_url: string | null;
+  metrics_url: string | null;
+  monitor_target: "health" | "page" | "push";
+  fly_app: string | null;
+  stack: AppStack | null;
+}
+
+export type NewsState = "new" | "read" | "saved" | "dismissed";
 
 export interface NewsItem {
   id: number;
@@ -357,4 +430,30 @@ export interface OwnItem {
 export interface OwnResponse {
   items: OwnItem[];
   connections: Connection[];
+}
+
+export interface LearningQuestion {
+  kind: "cloze" | "relation";
+  prompt: string;
+  answer: string;
+  path?: string;
+}
+
+export interface LearningExercise {
+  kind: "match" | "explain" | "investigate" | "reflect";
+  prompt: string;
+  pairs?: { path: string; term: string; definition: string }[];
+  options?: string[];
+}
+
+export interface LearningModule {
+  date: string;
+  path: string;
+  title: string;
+  portal: string;
+  link_map: Record<string, string | null>;
+  reading: { heading: string; markdown: string }[];
+  questions: LearningQuestion[];
+  exercises: LearningExercise[];
+  completed_at: string | null;
 }

@@ -8,8 +8,9 @@ import { EmptyState } from "../primitives/EmptyState";
 import { ErrorState } from "../primitives/ErrorState";
 import { StatusDot } from "../primitives/StatusDot";
 import { Table, type Column } from "../primitives/Table";
+import { centralTimestamp } from "../../time";
 
-const when = (iso: string) => new Date(iso).toLocaleString([], { dateStyle: "short", timeStyle: "short" });
+const when = centralTimestamp;
 
 const columns: Column<FlyRelease>[] = [
   { key: "version", header: "Version", align: "right", sortValue: (r) => r.version, render: (r) => `v${r.version}` },

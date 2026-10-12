@@ -59,3 +59,16 @@ def test_metrics_token_settings_exist_and_only_accompany_a_metrics_url() -> None
             if app.metrics_token_setting:
                 assert app.metrics_token_setting in Settings.model_fields, app.id
                 assert app.metrics_url is not None, app.id
+
+
+def test_every_app_has_a_stack_map_with_an_entry_point() -> None:
+    from app.registry import STACKS
+
+    for profile in ("local", "production"):
+        for app in get_registry(profile):
+            stack = STACKS.get(app.id)
+            assert stack is not None, f"{app.id} has no stack map"
+            assert stack.nodes[0].kind == "ui", f"{app.id} flow should start at its UI"
+            fly_hosts = {n.host for n in stack.nodes if n.host and "-" in n.host}
+            if profile == "production" and app.fly_app:
+                assert app.fly_app in fly_hosts, f"{app.id} stack omits its Fly app"

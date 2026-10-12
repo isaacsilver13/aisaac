@@ -4,7 +4,7 @@ import json
 import logging
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -20,6 +20,7 @@ from . import (
     fly_client,
     health_history,
     incidents,
+    learning,
     metrics_store,
     notify,
     personal_connect,
@@ -41,9 +42,11 @@ from .config import get_settings
 from .github_monitor import GitHubMonitor
 from .github_registry import get_repos
 from .monitoring import Monitor
-from .registry import get_registry
+from .registry import STACKS, get_registry
 from .schemas import (
     AgentSummary,
+    AppDefinition,
+    AppInfo,
     CIEventOut,
     CIReportIn,
     ClaudeUsageIn,
@@ -52,7 +55,9 @@ from .schemas import (
     CodexUsageOut,
     DashboardResponse,
     FinancialSnapshot,
+    HostingCostRow,
     IncidentOut,
+    LearningProgressIn,
     NeonUsageIn,
     NeonUsageOut,
     ProviderCostIn,
@@ -138,13 +143,20 @@ def app_health_history(
     return health_history.history(app_id, range)
 
 
-@app.get("/api/v1/apps/{app_id}/metrics-history")
-def app_metrics_history(
-    app_id: str, range: health_history.Range = Query(default="24h")
-) -> dict:
-    if app_id not in {a.id for a in get_registry(settings.profile)}:
-        raise HTTPException(404, "Unknown application.")
-    return health_history.metrics_history(app_id, range)
+@app.get("/api/v1/apps", response_model=list[AppInfo])
+def list_apps(x_dashboard_token: Optional[str] = Header(default=None)) -> list[AppInfo]:
+    """Registry entries (public URLs only, like /dashboard). The stack map names versions,
+    hosts and databases, so it is only included for holders of the read token."""
+    show_stack = bool(settings.dashboard_read_token) and _secrets_match(
+        x_dashboard_token, settings.dashboard_read_token
+    )
+    return [
+        AppInfo(
+            **a.model_dump(include=set(AppInfo.model_fields) - {"stack"}),
+            stack=STACKS.get(a.id) if show_stack else None,
+        )
+        for a in get_registry(settings.profile)
+    ]
 
 
 def _secrets_match(supplied: Optional[str], expected: str) -> bool:
@@ -228,8 +240,56 @@ def internal_metrics(source: str, payload: dict) -> None:
     try:
         parsed = model.model_validate(payload)
     except ValidationError as exc:
+        metrics_store.record_run(source, ok=False, error="invalid_payload")
         raise HTTPException(422, exc.errors(include_url=False, include_context=False)) from exc
     metrics_store.save(source, parsed.model_dump_json())
+
+
+def hosting_breakdown(
+    apps: tuple[AppDefinition, ...],
+    fly: Optional[ProviderCostOut],
+    neon: Optional[NeonUsageOut],
+) -> tuple[list[HostingCostRow], Optional[float]]:
+    """Fold pushed Fly apps and Neon projects into one row per registry app.
+
+    A source belongs to an app when its name is the app's id, fly_app or a cost alias;
+    anything else keeps its own row so no cost is hidden.
+    """
+    owner = {name: a for a in apps for name in (a.id, a.fly_app, *a.cost_aliases) if name}
+    rows: dict[str, HostingCostRow] = {}
+
+    def row(source: str) -> HostingCostRow:
+        a = owner.get(source)
+        key, name = (a.id, a.name) if a else (source, source)
+        return rows.setdefault(key, HostingCostRow(key=key, name=name))
+
+    if fly:
+        for source, usd in fly.by_app.items():
+            r = row(source)
+            r.fly_usd = (r.fly_usd or 0.0) + usd
+            if source in fly.machine_hours:
+                r.fly_hours = (r.fly_hours or 0.0) + fly.machine_hours[source]
+    allowance = neon.free_hours_per_project if neon else None
+    if neon:
+        for source, hours in neon.by_app.items():
+            r = row(source)
+            r.neon_hours = (r.neon_hours or 0.0) + hours
+            if allowance:
+                # Free plan: exactly $0; the allowance is per project, so show the fullest one.
+                r.neon_usd = 0.0
+                pct = 100 * hours / allowance
+                r.neon_allowance_pct = max(r.neon_allowance_pct or 0.0, pct)
+    for r in rows.values():
+        if r.fly_usd is not None:
+            r.fly_usd = round(r.fly_usd, 2)
+        if r.fly_hours is not None:
+            r.fly_hours = round(r.fly_hours, 2)
+        if r.neon_hours is not None:
+            r.neon_hours = round(r.neon_hours, 3)
+        r.total_usd = round((r.fly_usd or 0.0) + (r.neon_usd or 0.0), 2)
+    ordered = sorted(rows.values(), key=lambda r: (-r.total_usd, r.name.lower()))
+    total = round(sum(r.total_usd for r in ordered), 2) if (fly or allowance) else None
+    return ordered, total
 
 
 @app.get(
@@ -255,11 +315,15 @@ def financials() -> FinancialSnapshot:
         for name, value in (("claude", claude), ("codex", codex), ("neon", neon), ("fly", fly))
         if value is None
     ]
+    # Costs map onto production apps whatever profile this deployment checks.
+    hosting, hosting_total = hosting_breakdown(get_registry("production"), fly, neon)
     return FinancialSnapshot(
         claude=claude,
         codex=codex,
         neon=neon,
         fly=fly,
+        hosting=hosting,
+        hosting_total_usd=hosting_total,
         detail=f"No data reported yet for: {', '.join(missing)}." if missing else None,
     )
 
@@ -288,9 +352,17 @@ def list_agents() -> list[AgentSummary]:
 
 
 @app.get("/api/v1/analytics", response_model=list[RepoActivity])
-async def analytics(force_refresh: bool = Query(default=False)) -> list[RepoActivity]:
-    repos = get_repos()
-    return await github_monitor.activity(repos, force_refresh=force_refresh)
+async def analytics(
+    force_refresh: bool = Query(default=False),
+    x_dashboard_token: Optional[str] = Header(default=None),
+) -> list[RepoActivity]:
+    activity = await github_monitor.activity(get_repos(), force_refresh=force_refresh)
+    # Private repos (titles, PRs, languages) are only shown to holders of the read token.
+    if settings.dashboard_read_token and _secrets_match(
+        x_dashboard_token, settings.dashboard_read_token
+    ):
+        return activity
+    return [repo for repo in activity if not repo.private]
 
 
 @app.post("/internal/ci-report", status_code=204, dependencies=[Depends(_require_internal_secret)])
@@ -339,19 +411,20 @@ def get_runbook(app_id: str) -> str:
 )
 def second_brain_sync(payload: SecondBrainSyncIn) -> None:
     second_brain_store.replace_all(payload.meta, [n.model_dump() for n in payload.notes])
+    metrics_store.record_run("second-brain", ok=True)
 
 
 # --- Private news feed and daily digest -------------------------------------------------
 
 
 class NewsStateIn(BaseModel):
-    state: Literal["new", "saved", "dismissed"]
+    state: Literal["new", "read", "saved", "dismissed"]
 
 
 @app.get("/api/v1/personal/news", dependencies=[Depends(_require_read_token)])
 def personal_news_list(
     topic: Optional[str] = Query(default=None),
-    state: Optional[Literal["new", "saved", "dismissed"]] = Query(default=None),
+    state: Optional[Literal["new", "read", "saved", "dismissed"]] = Query(default=None),
 ) -> dict:
     if topic and topic not in personal_news.TOPICS:
         raise HTTPException(422, "Unknown topic.")
@@ -571,6 +644,14 @@ def automations_status() -> list[dict]:
     return automations.snapshot(settings.health_poll_interval_seconds)
 
 
+@app.get("/api/v1/automations/{automation_id}/runs", dependencies=[Depends(_require_read_token)])
+def automation_runs(automation_id: str) -> list[dict]:
+    runs = automations.runs(automation_id)
+    if runs is None:
+        raise HTTPException(404, f"Unknown automation '{automation_id}'.")
+    return runs
+
+
 @app.get("/api/v1/second-brain/summary", dependencies=[Depends(_require_read_token)])
 def second_brain_summary() -> dict:
     return second_brain_store.summary() or {"counts": {}, "pushed_at": None}
@@ -598,6 +679,24 @@ def second_brain_note(path: str) -> dict:
         raise HTTPException(404, "No such note.")
     return note
 
+
+
+@app.get("/api/v1/learning/module", dependencies=[Depends(_require_read_token)])
+def learning_module(day: Optional[date] = None) -> dict:
+    module = learning.module_for(day or learning.today())
+    if module is None:
+        raise HTTPException(404, "No study notes synced yet. Run scripts/second_brain_push.py.")
+    return module
+
+
+@app.post(
+    "/api/v1/learning/progress", dependencies=[Depends(_require_write_token)]
+)
+def learning_progress(payload: LearningProgressIn) -> dict:
+    if learning.pick(second_brain_store.paths(), payload.day) != payload.path:
+        raise HTTPException(422, "That note is not the module for that day.")
+    day = payload.day.isoformat()
+    return {"completed_at": second_brain_store.mark_studied(day, payload.path)}
 
 frontend_dist = Path(settings.frontend_dist).resolve()
 if frontend_dist.is_dir():

@@ -29,6 +29,14 @@
   --radius-sm: 4px;
   --radius: 6px;
   --radius-lg: 8px;
+
+  /* Categorical chart series, fixed order (dataviz reference palette, validated). */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
 }
 
 [data-theme="dark"] {
@@ -50,4 +58,11 @@
   --error: #f87171;
   --info: #60a5fa;
   --neutral: #a1a1aa;
+
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
 }

@@ -1,10 +1,11 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 
 import type { CheckResult, Incident } from "../../types";
 import { ActivityFeed } from "./ActivityFeed";
-import { AttentionPanel } from "./AttentionPanel";
 import { SystemOverview } from "./SystemOverview";
+
+afterEach(cleanup);
 
 function makeResult(overrides: Partial<CheckResult>): CheckResult {
   return {
@@ -35,21 +36,21 @@ describe("SystemOverview", () => {
       makeResult({ app_id: "a", state: "up" }),
       makeResult({ app_id: "b", state: "down" }),
     ];
-    render(<SystemOverview results={results} loading={false} />);
+    render(<SystemOverview results={results} openIncidents={[]} loading={false} />);
     expect(screen.getByText("1/2")).toBeInTheDocument();
     expect(screen.getByText(/1 down/)).toBeInTheDocument();
   });
 
   it("shows a placeholder while loading", () => {
-    render(<SystemOverview results={[]} loading />);
+    render(<SystemOverview results={[]} openIncidents={[]} loading />);
     expect(screen.getByText("--")).toBeInTheDocument();
   });
 });
 
-describe("AttentionPanel", () => {
-  it("shows an all-nominal message when there are no open incidents", () => {
-    render(<AttentionPanel openIncidents={[]} results={[]} />);
-    expect(screen.getByText("All systems nominal")).toBeInTheDocument();
+describe("SystemOverview incidents", () => {
+  it("says so when there are no open incidents", () => {
+    render(<SystemOverview results={[]} openIncidents={[]} loading={false} />);
+    expect(screen.getByText("No active incidents")).toBeInTheDocument();
   });
 
   it("lists open incidents by the app's display name", () => {
@@ -61,9 +62,9 @@ describe("AttentionPanel", () => {
       resolved_at: null,
       notes: null,
     };
-    render(<AttentionPanel openIncidents={[incident]} results={[makeResult({ app_id: "svc", name: "Vinyl" })]} />);
+    render(<SystemOverview openIncidents={[incident]} results={[makeResult({ app_id: "svc", name: "Vinyl" })]} loading={false} />);
     expect(screen.getByText("Vinyl")).toBeInTheDocument();
-    expect(screen.getByText(/http_error/)).toBeInTheDocument();
+    expect(screen.getByText("http_error · since 2026/09/25 07:00:00")).toBeInTheDocument();
   });
 });
 

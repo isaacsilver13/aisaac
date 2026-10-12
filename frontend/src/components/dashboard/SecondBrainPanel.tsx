@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Brain } from "iconoir-react";
 import { Link } from "react-router-dom";
 
 import { fetchSecondBrainSummary } from "../../api";
@@ -6,10 +7,9 @@ import { readToken } from "../../token";
 import type { SecondBrainSummary } from "../../types";
 import { Badge } from "../primitives/Badge";
 import { Card } from "../primitives/Card";
-import { Stat } from "../primitives/Stat";
 import { obsidianUrl } from "./secondBrain";
 
-/** Vault status card. Needs the same dashboard token as the financials panel; shows nothing until set. */
+/** One-line vault status. Needs the same dashboard token as the financials panel; shows nothing until set. */
 export function SecondBrainPanel() {
   const [token] = useState(readToken);
   const [summary, setSummary] = useState<SecondBrainSummary | null>(null);
@@ -27,28 +27,18 @@ export function SecondBrainPanel() {
 
   if (!summary) return null;
   const total = Object.values(summary.counts).reduce((a, b) => a + b, 0);
+  const breakdown = Object.entries(summary.counts).map(([folder, n]) => `${n} ${folder}`).join(" · ");
   return (
-    <Card aria-label="Second brain">
-      <Stat label="Second brain · notes" value={String(total)} />
-      <ul className="cost-by-app">
-        {Object.entries(summary.counts).map(([folder, n]) => (
-          <li key={folder}>
-            <span>{folder}</span>
-            <span>{n}</span>
-          </li>
-        ))}
-      </ul>
-      <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-        {!!summary.drafts && <Badge tone="warning">{summary.drafts} drafts</Badge>}
-        {!!summary.broken_links && <Badge tone="warning">{summary.broken_links} broken links</Badge>}
-      </div>
-      <div className="ui-stat-label" style={{ marginTop: 10 }}>
-        {summary.last_commit ?? "no commit info"}
-      </div>
-      <div className="ui-stat-label" style={{ marginTop: 6, display: "flex", gap: 12 }}>
-        <Link to="/second-brain">Browse wikis</Link>
-        <a href={obsidianUrl("Home.md")}>Open in Obsidian</a>
-      </div>
+    <Card aria-label="Second brain" className="second-brain-strip">
+      <Brain width={16} height={16} aria-hidden="true" />
+      <strong>{total} notes</strong>
+      <span className="second-brain-strip-breakdown" title={summary.last_commit ?? undefined}>{breakdown}</span>
+      {!!summary.drafts && <Badge tone="warning">{summary.drafts} drafts</Badge>}
+      {!!summary.broken_links && <Badge tone="warning">{summary.broken_links} broken links</Badge>}
+      <span className="second-brain-strip-links">
+        <Link to="/knowledge">Browse</Link>
+        <a href={obsidianUrl("Home.md")}>Obsidian</a>
+      </span>
     </Card>
   );
 }

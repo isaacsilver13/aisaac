@@ -2,7 +2,8 @@ import { useEffect, useRef } from "react";
 import { NavLink } from "react-router-dom";
 import { Xmark } from "iconoir-react";
 
-import { NAV_ITEMS } from "./navItems";
+import { AppIcon } from "../application/AppIcon";
+import { NAV_ITEMS, isNavGroup } from "./navItems";
 
 interface MobileDrawerProps {
   open: boolean;
@@ -71,7 +72,26 @@ export function MobileDrawer({ open, onClose, apps }: MobileDrawerProps) {
           <Xmark width={20} height={20} aria-hidden="true" />
         </button>
         <nav className="app-sidebar-nav">
-          {NAV_ITEMS.map((item) => (
+          {NAV_ITEMS.map((item) => isNavGroup(item) ? (
+            <div key={item.label}>
+              <div className="app-sidebar-link app-drawer-group">
+                <item.icon width={17} height={17} aria-hidden="true" />
+                <span>{item.label}</span>
+              </div>
+              <div className="app-drawer-subnav" aria-label={item.label}>
+                {item.children.map((child) => (
+                  <NavLink
+                    key={child.to}
+                    to={child.to}
+                    onClick={onClose}
+                    className={({ isActive }) => `app-sidebar-link${isActive ? " app-sidebar-link-active" : ""}`}
+                  >
+                    <span>{child.label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            </div>
+          ) : (
             <div key={item.to}>
               <NavLink
                 to={item.to}
@@ -91,6 +111,7 @@ export function MobileDrawer({ open, onClose, apps }: MobileDrawerProps) {
                       onClick={onClose}
                       className={({ isActive }) => `app-sidebar-link${isActive ? " app-sidebar-link-active" : ""}`}
                     >
+                      <AppIcon appId={app.id} size={15} />
                       <span>{app.name}</span>
                     </NavLink>
                   ))}

@@ -101,12 +101,14 @@ def test_check_repo_flags_stale_pull_requests() -> None:
         if request.url.path.endswith("/pulls"):
             stale_pr = {
                 "number": 1,
+                "state": "open",
                 "title": "stale one",
                 "html_url": "https://x/1",
                 "created_at": stale_opened_at,
             }
             fresh_pr = {
                 "number": 2,
+                "state": "open",
                 "title": "fresh one",
                 "html_url": "https://x/2",
                 "created_at": fresh_opened_at,
@@ -154,6 +156,8 @@ def test_activity_uses_ttl_cache(monkeypatch) -> None:
     repo = _repo()
 
     async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/user/repos":
+            return httpx.Response(503)  # listing unavailable: fall back to curated repos
         is_actions = "actions" in str(request.url)
         return httpx.Response(200, json={"workflow_runs": []} if is_actions else [])
 
@@ -193,3 +197,75 @@ def test_check_repo_flags_missing_token() -> None:
     result = asyncio.run(run())
 
     assert result.detail == "No GitHub token configured; live GitHub data is unavailable."
+
+
+def test_check_repo_reports_commit_weeks_languages_and_pr_history() -> None:
+    repo = _repo()
+    week = int(datetime(2026, 10, 4, tzinfo=timezone.utc).timestamp())
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path.endswith("/actions/runs"):
+            return httpx.Response(200, json={"workflow_runs": []})
+        if path.endswith("/stats/commit_activity"):
+            weekly = {"week": week, "total": 3, "days": [0, 1, 2, 0, 0, 0, 0]}
+            return httpx.Response(200, json=[weekly])
+        if path.endswith("/languages"):
+            return httpx.Response(200, json={"Python": 900, "TypeScript": 100})
+        if path.endswith("/pulls"):
+            assert request.url.params["state"] == "all"
+            merged = {
+                "number": 1,
+                "state": "closed",
+                "title": "done",
+                "html_url": "https://x/1",
+                "created_at": "2026-10-01T00:00:00Z",
+                "merged_at": "2026-10-02T00:00:00Z",
+            }
+            return httpx.Response(200, json=[merged])
+        return httpx.Response(200, json=[])
+
+    async def run() -> object:
+        monitor = GitHubMonitor(token="fixture-token")
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            return await monitor._check_repo(client, repo)
+
+    result = asyncio.run(run())
+
+    assert result.open_pr_count == 0  # closed PRs are history, not open
+    assert result.languages == {"Python": 900, "TypeScript": 100}
+    assert result.commit_weeks[0].week == datetime(2026, 10, 4, tzinfo=timezone.utc)
+    assert result.commit_weeks[0].days == [0, 1, 2, 0, 0, 0, 0]
+    assert result.pull_request_history[0].merged_at == datetime(2026, 10, 2, tzinfo=timezone.utc)
+
+
+def test_activity_discovers_repos_from_github(monkeypatch) -> None:
+    import app.github_monitor as gm
+
+    listing = [
+        {"name": "widgets", "owner": {"login": "isaacsilver13"}, "private": False},
+        {"name": "new_thing", "owner": {"login": "isaacsilver13"}, "private": True},
+        {"name": "old", "owner": {"login": "isaacsilver13"}, "archived": True},
+    ]
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/user/repos":
+            return httpx.Response(200, json=listing)
+        is_actions = "actions" in str(request.url)
+        return httpx.Response(200, json={"workflow_runs": []} if is_actions else [])
+
+    original_client = httpx.AsyncClient
+
+    def patched_client(*args, **kwargs):
+        kwargs["transport"] = httpx.MockTransport(handler)
+        return original_client(*args, **kwargs)
+
+    monkeypatch.setattr(gm.httpx, "AsyncClient", patched_client)
+
+    result = asyncio.run(GitHubMonitor(token="fixture-token").activity((_repo(),)))
+
+    by_repo = {item.repo: item for item in result}
+    assert set(by_repo) == {"widgets", "new_thing"}  # archived repo skipped
+    assert by_repo["widgets"].name == "Fixture"  # curated name kept
+    assert by_repo["new_thing"].repo_id == "new-thing"
+    assert by_repo["new_thing"].private is True

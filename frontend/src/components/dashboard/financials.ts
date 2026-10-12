@@ -1,3 +1,4 @@
+import { centralTimestamp } from "../../time";
 import type { Tone } from "../primitives/tone";
 
 export const USAGE_STALE_MS = 30 * 60 * 1000;
@@ -23,13 +24,7 @@ export function formatTimeUntil(target: string, now = Date.now()): string {
   return hours > 0 ? `${hours}h ${minutes % 60}m` : `${minutes}m`;
 }
 
-export function formatResetAt(target: string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    weekday: "short",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(target));
-}
+export const formatResetAt = centralTimestamp;
 
 export function formatHours(value: number): string {
   return `${value.toFixed(value < 10 ? 2 : 1)} h`;

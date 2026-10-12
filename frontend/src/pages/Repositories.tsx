@@ -28,7 +28,7 @@ export default function Repositories() {
       ) : loading ? null : repos.length > 0 ? (
         <Table columns={repoColumns} rows={repos} rowKey={(r) => r.repo_id} searchText={repoSearchText} filters={repoFilters} />
       ) : (
-        <EmptyState message="No repositories are configured for this profile." />
+        <EmptyState message="No repositories found for isaacsilver13." />
       )}
     </>
   );

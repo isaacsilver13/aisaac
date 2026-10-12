@@ -436,7 +436,7 @@ def test_dashboard_resolves_incident_on_recovery(tmp_path) -> None:
 
 def test_check_app_default_timeout_and_slow_threshold_are_sane() -> None:
     monitor = Monitor()
-    assert monitor.slow_after_ms == 3000.0
+    assert monitor.slow_after_ms == 8000.0
     assert monitor.retry_delay_seconds == 2.0
 
 

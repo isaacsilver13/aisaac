@@ -1,5 +1,6 @@
 import { Clock } from "iconoir-react";
 
+import { centralTimestamp } from "../time";
 import type { AgentSummary } from "../types";
 import { Badge } from "./primitives/Badge";
 import { Card } from "./primitives/Card";
@@ -10,7 +11,7 @@ interface AgentCardProps {
 
 function formatLastRun(value: string | null): string {
   if (!value) return "Never run";
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  return centralTimestamp(value);
 }
 
 export function AgentCard({ agent }: AgentCardProps) {

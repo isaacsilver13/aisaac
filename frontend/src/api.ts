@@ -1,4 +1,4 @@
-import type { NewShoeWatch, OwnResponse, NewsResponse, ShoesResponse, SportsResponse, NewsState, AutomationStatus, ConfigItem, MetricsHistory, AppLogs, Deployments, HealthHistory, HistoryRange, AgentSummary, CIEvent, DashboardResponse, FinancialSnapshot, Incident, Note, NoteListItem, Portal, RepoActivity, SecondBrainSummary, VaultGraph } from "./types";
+import type { NewShoeWatch, OwnResponse, NewsResponse, ShoesResponse, SportsResponse, NewsState, AutomationStatus, AutomationRun, ConfigItem, AppInfo, AppLogs, Deployments, HealthHistory, HistoryRange, LearningModule, AgentSummary, CIEvent, DashboardResponse, FinancialSnapshot, Incident, Note, NoteListItem, Portal, RepoActivity, SecondBrainSummary, VaultGraph } from "./types";
 import { readToken, readWriteToken } from "./token";
 
 export class FinancialsAuthError extends Error {}
@@ -60,10 +60,11 @@ export async function fetchAgents(): Promise<AgentSummary[]> {
   return (await response.json()) as AgentSummary[];
 }
 
-export async function fetchAnalytics(forceRefresh = false): Promise<RepoActivity[]> {
+export async function fetchAnalytics(forceRefresh = false, token = readToken()): Promise<RepoActivity[]> {
   const query = forceRefresh ? "?force_refresh=true" : "";
+  // The read token is optional here: with it, private repos are included.
   const response = await fetch(`/api/v1/analytics${query}`, {
-    headers: { Accept: "application/json" },
+    headers: token ? { Accept: "application/json", "X-Dashboard-Token": token } : { Accept: "application/json" },
   });
   if (!response.ok) {
     throw new Error(`Analytics request failed with HTTP ${response.status}.`);
@@ -147,6 +148,14 @@ export async function fetchAutomations(token: string): Promise<AutomationStatus[
   return (await response.json()) as AutomationStatus[];
 }
 
+export async function fetchAutomationRuns(token: string, id: string): Promise<AutomationRun[]> {
+  const response = await fetch(`/api/v1/automations/${encodeURIComponent(id)}/runs`, {
+    headers: { Accept: "application/json", "X-Dashboard-Token": token },
+  });
+  if (!response.ok) throw new Error(`Run history request failed with HTTP ${response.status}.`);
+  return (await response.json()) as AutomationRun[];
+}
+
 export async function fetchConfigStatus(token: string): Promise<ConfigItem[]> {
   const response = await fetch("/api/v1/config-status", {
     headers: { Accept: "application/json", "X-Dashboard-Token": token },
@@ -156,21 +165,43 @@ export async function fetchConfigStatus(token: string): Promise<ConfigItem[]> {
   return ((await response.json()) as { items: ConfigItem[] }).items;
 }
 
-export async function fetchMetricsHistory(appId: string, range: HistoryRange): Promise<MetricsHistory> {
-  const response = await fetch(`/api/v1/apps/${encodeURIComponent(appId)}/metrics-history?range=${range}`, {
-    headers: { Accept: "application/json" },
+export async function fetchApps(): Promise<AppInfo[]> {
+  const token = readToken();
+  // The read token is optional here: with it, each app's stack map is included.
+  const response = await fetch("/api/v1/apps", {
+    headers: token ? { Accept: "application/json", "X-Dashboard-Token": token } : { Accept: "application/json" },
   });
-  if (!response.ok) throw new Error(`Metrics history request failed with HTTP ${response.status}.`);
-  return (await response.json()) as MetricsHistory;
+  if (!response.ok) throw new Error(`Applications request failed with HTTP ${response.status}.`);
+  return (await response.json()) as AppInfo[];
 }
 
 export const fetchPortals = (token: string) => secondBrainGet<Portal[]>("portals", token);
 
 export const fetchGraph = (token: string) => secondBrainGet<VaultGraph>("graph", token);
 
+export async function fetchLearningModule(token: string, day = ""): Promise<LearningModule> {
+  const response = await fetch(`/api/v1/learning/module${day ? `?day=${encodeURIComponent(day)}` : ""}`, {
+    headers: { Accept: "application/json", "X-Dashboard-Token": token },
+  });
+  if (response.status === 401) throw new FinancialsAuthError("Invalid dashboard token.");
+  if (response.status === 404) throw new Error("No study notes synced yet. Run scripts/second_brain_push.py.");
+  if (!response.ok) throw new Error(`Learning request failed with HTTP ${response.status}.`);
+  return (await response.json()) as LearningModule;
+}
+
+export async function completeLearningModule(day: string, path: string, writeToken = readWriteToken()): Promise<string> {
+  const response = await fetch("/api/v1/learning/progress", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Dashboard-Write-Token": writeToken },
+    body: JSON.stringify({ day, path }),
+  });
+  if (!response.ok) throw new Error(`Saving progress failed with HTTP ${response.status}.`);
+  return ((await response.json()) as { completed_at: string }).completed_at;
+}
+
 const STALE_NEWS_MS = 60 * 60 * 1000;
 
-async function getNews(token: string): Promise<NewsResponse> {
+export async function getNews(token: string): Promise<NewsResponse> {
   const response = await fetch("/api/v1/personal/news", {
     headers: { Accept: "application/json", "X-Dashboard-Token": token },
   });

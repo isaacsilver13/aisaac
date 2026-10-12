@@ -28,7 +28,7 @@ const noteColumns: Column<NoteListItem>[] = [
 
 type Guard = <T>(call: Promise<T>) => Promise<T>;
 
-function Gate({ onToken }: { onToken: (token: string) => void }) {
+export function Gate({ onToken }: { onToken: (token: string) => void }) {
   const [draft, setDraft] = useState("");
   function submit(event: FormEvent) {
     event.preventDefault();

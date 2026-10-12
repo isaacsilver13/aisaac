@@ -10,13 +10,13 @@ afterEach(cleanup);
 // jsdom has no matchMedia, which the theme toggle reads.
 window.matchMedia ??= (() => ({ matches: false })) as unknown as typeof window.matchMedia;
 
-function setup() {
+function setup(collapsed = false) {
   render(
     <MemoryRouter>
       <Sidebar
         status={{ label: "ok", tone: "success" }}
         apps={[{ id: "a", name: "Alpha" }]}
-        collapsed={false}
+        collapsed={collapsed}
         onToggleCollapsed={() => {}}
       />
     </MemoryRouter>,
@@ -29,5 +29,20 @@ describe("Sidebar", () => {
     expect(screen.getByText("Alpha")).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "Collapse applications" }));
     await waitFor(() => expect(screen.queryByText("Alpha")).toBeNull());
+  });
+
+  it("groups Sports, News and Shoes under a collapsible Life section", async () => {
+    setup();
+    const life = screen.getByRole("button", { name: "Life" });
+    expect(life).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("link", { name: "News" })).toHaveAttribute("href", "/news");
+    await userEvent.click(life);
+    await waitFor(() => expect(screen.queryByRole("link", { name: "Sports" })).toBeNull());
+  });
+
+  it("keeps Life links reachable as icons when the sidebar is collapsed", () => {
+    setup(true);
+    expect(screen.queryByRole("button", { name: "Life" })).toBeNull();
+    expect(screen.getByTitle("Shoes")).toHaveAttribute("href", "/shoes");
   });
 });

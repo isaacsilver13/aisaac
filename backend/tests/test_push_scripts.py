@@ -1,5 +1,6 @@
 import importlib.util
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parents[2] / "scripts"
@@ -16,15 +17,12 @@ def _load(name):
 fly = _load("push_fly_costs")
 neon = _load("push_neon_usage")
 
-DAY_MS = 86_400_000
-START = 1_788_220_800_000  # period start (ms)
-NOW = START + 10 * DAY_MS
+DAY = 86400
 
 
-def _machine(state, events, cpus=1, memory_mb=256, cpu_kind="shared"):
+def _machine(machine_id, cpus=1, memory_mb=256, cpu_kind="shared"):
     return {
-        "state": state,
-        "events": [{"type": t, "timestamp": ts} for t, ts in events],
+        "id": machine_id,
         "config": {"guest": {"cpu_kind": cpu_kind, "cpus": cpus, "memory_mb": memory_mb}},
     }
 
@@ -36,56 +34,55 @@ def test_machine_price_matches_published_presets():
     assert fly.machine_monthly_price({"cpu_kind": "performance", "cpus": 1}) is None
 
 
-def test_uptime_from_start_stop_pairs_and_clipped_to_period():
-    machine = _machine(
-        "stopped",
-        [("start", START - DAY_MS), ("stop", START + DAY_MS), ("start", START + 5 * DAY_MS),
-         ("exit", START + 6 * DAY_MS)],
-    )
-    # 1 day of the first run inside the period + 1 day for the second.
-    assert fly.uptime_seconds(machine, START, NOW) == 2 * 86400
+def test_daily_uptime_attributes_each_step_to_the_previous_day():
+    oct2 = datetime(2026, 10, 2, tzinfo=timezone.utc).timestamp()
+    response = {"data": {"result": [
+        {"metric": {"app": "a", "instance": "m1"}, "values": [[oct2, "240"], [oct2 + DAY, "4"]]},
+        {"metric": {"app": "b"}, "values": [[oct2, "9"]]},  # no instance label: skipped
+    ]}}
+    days = fly.daily_uptime(response)
+    assert list(days) == ["2026-10-01", "2026-10-02"]
+    assert days["2026-10-01"] == {"a": {"m1": 3600.0}}
+    assert days["2026-10-02"] == {"a": {"m1": 60.0}}
 
 
-def test_started_machine_counts_to_now_and_ignores_orphan_stop():
-    recent = _machine("started", [("start", START + 8 * DAY_MS)])
-    assert fly.uptime_seconds(recent, START, NOW) == 2 * 86400
-    assert fly.uptime_seconds(_machine("started", []), START, NOW) == 10 * 86400
-    assert fly.uptime_seconds(_machine("stopped", [("stop", START + DAY_MS)]), START, NOW) == 0
+def test_merge_days_keeps_aged_out_days_and_never_shrinks():
+    cached = {"2026-10-01": {"a": {"m1": 3600.0}}, "2026-10-02": {"a": {"m1": 600.0}}}
+    fresh = {"2026-10-02": {"a": {"m1": 300.0, "m2": 60.0}}, "2026-10-03": {"b": {"m3": 15.0}}}
+    merged = fly.merge_days(cached, fresh)
+    assert merged["2026-10-01"] == {"a": {"m1": 3600.0}}
+    assert merged["2026-10-02"] == {"a": {"m1": 600.0, "m2": 60.0}}
+    assert merged["2026-10-03"] == {"b": {"m3": 15.0}}
+    assert cached["2026-10-02"] == {"a": {"m1": 600.0}}  # input untouched
 
 
-def test_app_estimate_includes_volumes_and_dedicated_ip_only():
-    machines = [_machine("stopped", [])]
+def test_app_costs_prices_uptime_by_machine_size_plus_volumes_and_dedicated_ip():
+    machines = [_machine("m1", memory_mb=512)]
+    uptime = {"m1": 10 * DAY, "gone": 10 * DAY}  # destroyed machine priced like m1
     volumes = [{"size_gb": 2}]
     ips = [{"Type": "v4"}, {"Type": "shared_v4"}, {"Type": "v6"}]
-    elapsed = 10 * 86400 / fly.MONTH_SECONDS
-    expected = 2 * 0.15 * elapsed + 2.0 * elapsed
-    assert abs(fly.app_estimate(machines, volumes, ips, START, NOW) - expected) < 1e-9
+    third = 10 * DAY / fly.MONTH_SECONDS
+    expected = 2 * 2.60 * third + 2 * 0.15 * third + 2.0 * third
+    assert abs(fly.app_costs(uptime, machines, volumes, ips, third) - expected) < 1e-9
+    assert fly.app_costs({}, [], [], [], third) == 0
 
 
-def test_build_payload_adds_unattributed_remainder():
-    payload = fly.build_payload({"a": 1.0, "b": 2.0}, "2026-09", 10.30)
-    assert payload["total_usd"] == 10.30
-    assert payload["by_app"]["(unattributed)"] == 7.30
-    assert payload["estimated"] is True
-
-
-def test_build_payload_scales_down_when_estimates_exceed_invoice():
-    payload = fly.build_payload({"a": 6.0, "b": 6.0}, "2026-09", 6.0)
-    assert payload["by_app"] == {"a": 3.0, "b": 3.0}
-    assert payload["total_usd"] == 6.0
-
-
-def test_build_payload_without_invoice_sums_estimates():
-    payload = fly.build_payload({"a": 1.234, "b": 2.0}, "2026-09", None)
+def test_build_payload_sums_estimates_and_keeps_invoice_separate():
+    payload = fly.build_payload({"a": 1.234, "b": 2.0}, {"a": 3.0, "b": 0.5}, "2026-10", 17.75)
     assert payload["total_usd"] == 3.23
-    assert "(unattributed)" not in payload["by_app"]
+    assert payload["by_app"] == {"a": 1.23, "b": 2.0}
+    assert payload["machine_hours"] == {"a": 3.0, "b": 0.5}
+    assert payload["invoice_total_usd"] == 17.75
+    assert "invoice_total_usd" not in fly.build_payload({}, {}, "2026-10", None)
 
 
 def test_payloads_validate_against_backend_schemas():
     from app.schemas import NeonUsageIn, ProviderCostIn
 
-    ProviderCostIn.model_validate(fly.build_payload({"a": 1.0}, "2026-09", 5.0))
-    NeonUsageIn.model_validate(neon.build_payload({"p1": 3600.0}, {"p1": "gym-tracker"}, "2026-09"))
+    ProviderCostIn.model_validate(fly.build_payload({"a": 1.0}, {"a": 2.0}, "2026-09", 5.0))
+    payload = neon.build_payload({"p1": 3600.0}, {"p1": "gym-tracker"}, "2026-09", "free_v3")
+    assert NeonUsageIn.model_validate(payload).free_hours_per_project == 100.0
+    assert "free_hours_per_project" not in neon.build_payload({}, {}, "2026-09", "launch")
 
 
 def test_neon_sums_legacy_and_v2_shapes_and_maps_names():
@@ -119,13 +116,6 @@ def test_load_config_accepts_powershell_utf8_bom(tmp_path, monkeypatch):
     monkeypatch.setattr(push_common, "CONFIG_FILE", config_file)
     monkeypatch.delenv("AISAAC_DASHBOARD_URL", raising=False)
     assert push_common.load_config()["AISAAC_DASHBOARD_URL"] == "https://x.example"
-
-
-def test_split_invoice_allocates_by_weight_and_keeps_total():
-    payload = fly.split_invoice({"a": 1.0, "b": 3.0, "idle": 0.0}, "2026-09", 8.0)
-    assert payload["by_app"] == {"a": 2.0, "b": 6.0}
-    assert payload["total_usd"] == 8.0
-    assert fly.split_invoice({"a": 0.0}, "2026-09", 5.0)["by_app"] == {"(unattributed)": 5.0}
 
 
 def test_neon_counter_fallback_reads_cpu_used_sec():

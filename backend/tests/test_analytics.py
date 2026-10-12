@@ -37,3 +37,30 @@ def test_analytics_endpoint_returns_github_monitor_output(monkeypatch) -> None:
     assert response.status_code == 200
     activity = response.json()
     assert activity == [fixture.model_dump(mode="json")]
+
+
+def test_analytics_hides_private_repos_without_read_token(monkeypatch) -> None:
+    def repo(name: str, private: bool) -> RepoActivity:
+        return RepoActivity(
+            repo_id=name,
+            name=name,
+            category="Other",
+            owner="isaacsilver13",
+            repo=name,
+            private=private,
+            checked_at=datetime.now(timezone.utc),
+        )
+
+    async def fake_activity(repos, force_refresh=False):
+        return [repo("public", False), repo("secret", True)]
+
+    monkeypatch.setattr(main.github_monitor, "activity", fake_activity)
+    monkeypatch.setattr(main.settings, "dashboard_read_token", "read")
+
+    def names(headers: dict[str, str]) -> list[str]:
+        response = asyncio.run(_request("GET", "/api/v1/analytics", headers=headers))
+        return [item["repo"] for item in response.json()]
+
+    assert names({}) == ["public"]
+    assert names({"X-Dashboard-Token": "wrong"}) == ["public"]
+    assert names({"X-Dashboard-Token": "read"}) == ["public", "secret"]
