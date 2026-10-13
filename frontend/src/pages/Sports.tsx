@@ -5,7 +5,9 @@ import { fetchSports } from "../api";
 import { Badge } from "../components/primitives/Badge";
 import { EmptyState } from "../components/primitives/EmptyState";
 import { ErrorState } from "../components/primitives/ErrorState";
+import { LoadingBoundary, RefreshOverlay } from "../components/primitives/LoadingBoundary";
 import { PageHeader } from "../components/primitives/PageHeader";
+import { SkeletonStack } from "../components/primitives/Skeleton";
 import { Table, type Column } from "../components/primitives/Table";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { centralTimestamp } from "../time";
@@ -62,48 +64,60 @@ export default function Sports() {
         <EmptyState message="Add your dashboard token in Settings to view sports." />
       ) : error ? (
         <ErrorState message={error} onRetry={() => void reload()} />
-      ) : loading || !data ? null : (
-        <>
-          {!data.configured && (
-            <p role="status" className="muted">
-              No sports data provider is configured, so scores are not available. Official scoreboards:{" "}
-              {(Object.keys(data.official_links) as League[]).map((l, i) => (
-                <span key={l}>
-                  {i > 0 && " · "}
-                  <a href={data.official_links[l]} target="_blank" rel="noopener noreferrer">{l}</a>
-                </span>
-              ))}
-            </p>
-          )}
-          {data.configured && data.last_error && (
-            <p role="status" className="muted">Showing last saved games; the latest refresh failed.</p>
-          )}
-          {data.priority.length > 0 && (
-            <ul aria-label="Chicago teams">
-              {data.priority.map((e) => <li key={e.id}>{matchup(e)} · {centralTimestamp(e.start_at)}</li>)}
-            </ul>
-          )}
-          <label>
-            <input type="checkbox" checked={topOnly} disabled={!rankings?.current} onChange={(ev) => setTopOnly(ev.target.checked)} />{" "}
-            AP Top 25 only
-          </label>
-          {rankings?.current ? (
-            <span className="muted"> Poll of {rankings.poll_date}</span>
-          ) : (
-            <span className="muted"> Rankings unavailable{rankings?.poll_date ? ` (last poll ${rankings.poll_date} is out of date)` : ""}</span>
-          )}
-          <Table
-            columns={columns}
-            rows={rows}
-            rowKey={(e) => e.id}
-            searchText={(e) => `${e.home} ${e.away} ${e.league}`}
-            filters={[
-              { label: "League", value: (e) => e.league },
-              { label: "Conference", value: (e) => e.home_conference ?? e.away_conference ?? "" },
-            ]}
-            emptyMessage="No games match."
-          />
-        </>
+      ) : (
+        <RefreshOverlay refreshing={refreshing} label="Refreshing sports">
+          <LoadingBoundary
+            loading={loading}
+            hasData={Boolean(data)}
+            label="Loading sports"
+            skeleton={<SkeletonStack rows={6} rowHeight={52} />}
+            empty={<EmptyState message="No sports data is available." />}
+          >
+            {data && (
+              <>
+                {!data.configured && (
+                  <p role="status" className="muted">
+                    No sports data provider is configured, so scores are not available. Official scoreboards:{" "}
+                    {(Object.keys(data.official_links) as League[]).map((l, i) => (
+                      <span key={l}>
+                        {i > 0 && " · "}
+                        <a href={data.official_links[l]} target="_blank" rel="noopener noreferrer">{l}</a>
+                      </span>
+                    ))}
+                  </p>
+                )}
+                {data.configured && data.last_error && (
+                  <p role="status" className="muted">Showing last saved games; the latest refresh failed.</p>
+                )}
+                {data.priority.length > 0 && (
+                  <ul aria-label="Chicago teams">
+                    {data.priority.map((e) => <li key={e.id}>{matchup(e)} · {centralTimestamp(e.start_at)}</li>)}
+                  </ul>
+                )}
+                <label>
+                  <input type="checkbox" checked={topOnly} disabled={!rankings?.current} onChange={(ev) => setTopOnly(ev.target.checked)} />{" "}
+                  AP Top 25 only
+                </label>
+                {rankings?.current ? (
+                  <span className="muted"> Poll of {rankings.poll_date}</span>
+                ) : (
+                  <span className="muted"> Rankings unavailable{rankings?.poll_date ? ` (last poll ${rankings.poll_date} is out of date)` : ""}</span>
+                )}
+                <Table
+                  columns={columns}
+                  rows={rows}
+                  rowKey={(e) => e.id}
+                  searchText={(e) => `${e.home} ${e.away} ${e.league}`}
+                  filters={[
+                    { label: "League", value: (e) => e.league },
+                    { label: "Conference", value: (e) => e.home_conference ?? e.away_conference ?? "" },
+                  ]}
+                  emptyMessage="No games match."
+                />
+              </>
+            )}
+          </LoadingBoundary>
+        </RefreshOverlay>
       )}
     </>
   );

@@ -8,6 +8,8 @@ import { StatusBadge } from "../StatusBadge";
 import { Card } from "../primitives/Card";
 import { EmptyState } from "../primitives/EmptyState";
 import { ErrorState } from "../primitives/ErrorState";
+import { LoadingBoundary } from "../primitives/LoadingBoundary";
+import { Skeleton, SkeletonStack } from "../primitives/Skeleton";
 import { Stat } from "../primitives/Stat";
 import { centralTimestampOrDash, exactTimestamp, humanizeTimestamp } from "../../time";
 
@@ -38,13 +40,17 @@ export function OverviewTab({ appId }: { appId: string }) {
 
   if (dashboard.error) return <ErrorState message={dashboard.error} onRetry={() => void dashboard.reload()} />;
   const result = dashboard.data?.results.find((r) => r.app_id === appId);
-  if (!dashboard.loading && !result) return <EmptyState message="This application is not registered." />;
-  if (!result) return null;
-
-  const repo = repos.data?.find((r) => r.repo_id === appId);
+  const repo = Array.isArray(repos.data) ? repos.data.find((r) => r.repo_id === appId) : undefined;
 
   return (
-    <>
+    <LoadingBoundary
+      loading={dashboard.loading}
+      hasData={Boolean(result)}
+      label="Loading application overview"
+      skeleton={<><Skeleton height={126} /><div style={{ height: 12 }} /><Skeleton height={120} /><div style={{ height: 12 }} /><Skeleton height={120} /></>}
+      empty={<EmptyState message="This application is not registered." />}
+    >
+      {result && <>
       <Card>
         <div style={{ alignItems: "center", display: "flex", gap: 12, justifyContent: "space-between", flexWrap: "wrap" }}>
           <div>
@@ -76,35 +82,38 @@ export function OverviewTab({ appId }: { appId: string }) {
 
       <div className="ui-stat-label" style={{ margin: "16px 0 8px" }}>Repository</div>
       <Card>
-        {repo ? (
-          <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" }}>
-            <Stat label="CI" value={<CiStatusBadge status={repo.ci_status} />} />
-            <Stat label="Open PRs" value={repo.open_pr_count ?? "—"} />
-            <Stat label="Open issues" value={repo.open_issue_count ?? "—"} />
-            <Stat label="Commits, 7d" value={repo.commits_last_7d ?? "—"} />
-            <Stat label="Last commit" value={when(repo.last_commit_at)} />
-          </div>
-        ) : (
-          <EmptyState message={repos.error ?? (repos.loading ? "Loading…" : "No repository data for this app.")} />
-        )}
+        <LoadingBoundary loading={repos.loading} hasData={Boolean(repo)} label="Loading repository summary" skeleton={<SkeletonStack rows={2} rowHeight={38} />} empty={<EmptyState message={repos.error ?? "No repository data for this app."} />}>
+          {repo && (
+            <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" }}>
+              <Stat label="CI" value={<CiStatusBadge status={repo.ci_status} />} />
+              <Stat label="Open PRs" value={repo.open_pr_count ?? "—"} />
+              <Stat label="Open issues" value={repo.open_issue_count ?? "—"} />
+              <Stat label="Commits, 7d" value={repo.commits_last_7d ?? "—"} />
+              <Stat label="Last commit" value={when(repo.last_commit_at)} />
+            </div>
+          )}
+        </LoadingBoundary>
       </Card>
 
       <div className="ui-stat-label" style={{ margin: "16px 0 8px" }}>Recent CI events</div>
       <Card>
-        {events.data && events.data.length > 0 ? (
-          <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-            {events.data.slice(0, 5).map((e) => (
-              <li key={e.id} style={{ alignItems: "center", display: "flex", gap: 12, padding: "4px 0" }}>
-                <CiStatusBadge status={e.ci_status} />
-                <span>{e.event_type}</span>
-                <span className="ui-stat-label">{when(e.received_at)}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <EmptyState message={events.error ?? (events.loading ? "Loading…" : "No CI events received.")} />
-        )}
+        <LoadingBoundary loading={events.loading} hasData={Boolean(events.data)} label="Loading recent CI events" skeleton={<SkeletonStack rows={4} rowHeight={34} />} empty={<EmptyState message={events.error ?? "No CI event data is available."} />}>
+          {events.data && events.data.length > 0 ? (
+            <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+              {events.data.slice(0, 5).map((e) => (
+                <li key={e.id} style={{ alignItems: "center", display: "flex", gap: 12, padding: "4px 0" }}>
+                  <CiStatusBadge status={e.ci_status} />
+                  <span>{e.event_type}</span>
+                  <span className="ui-stat-label">{when(e.received_at)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState message="No CI events received." />
+          )}
+        </LoadingBoundary>
       </Card>
-    </>
+      </>}
+    </LoadingBoundary>
   );
 }

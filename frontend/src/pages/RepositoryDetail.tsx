@@ -6,7 +6,9 @@ import { CiStatusBadge } from "../components/CiStatusBadge";
 import { Card } from "../components/primitives/Card";
 import { EmptyState } from "../components/primitives/EmptyState";
 import { ErrorState } from "../components/primitives/ErrorState";
+import { LoadingBoundary } from "../components/primitives/LoadingBoundary";
 import { PageHeader } from "../components/primitives/PageHeader";
+import { Skeleton, SkeletonStack } from "../components/primitives/Skeleton";
 import { Stat } from "../components/primitives/Stat";
 import { Table, type Column } from "../components/primitives/Table";
 import { useCallback } from "react";
@@ -37,7 +39,7 @@ export default function RepositoryDetail() {
 
   const back = <Link className="ui-stat-label" to="/github/repositories">← All repositories</Link>;
   if (repos.error) return <ErrorState message={repos.error} onRetry={() => void repos.reload(true)} />;
-  if (repos.loading) return null;
+  if (repos.loading) return <>{back}<LoadingBoundary loading hasData={false} label="Loading repository" skeleton={<><Skeleton height={120} /><div style={{ height: 12 }} /><SkeletonStack rows={5} rowHeight={46} /></>} empty={null}>{null}</LoadingBoundary></>;
   const repo = repos.data?.find((r) => r.repo_id === id);
   if (!repo) return <>{back}<EmptyState message="That repository is not tracked, or it is private and no dashboard token is saved." /></>;
 
@@ -80,7 +82,15 @@ export default function RepositoryDetail() {
       {events.error ? (
         <ErrorState message={events.error} onRetry={() => void events.reload()} />
       ) : (
-        <Table columns={eventColumns} rows={events.data ?? []} rowKey={(e) => String(e.id)} emptyMessage="No CI events received." />
+        <LoadingBoundary
+          loading={events.loading}
+          hasData={Boolean(events.data)}
+          label="Loading CI events"
+          skeleton={<SkeletonStack rows={4} rowHeight={44} />}
+          empty={<EmptyState message="No CI event data is available." />}
+        >
+          <Table columns={eventColumns} rows={events.data ?? []} rowKey={(e) => String(e.id)} emptyMessage="No CI events received." />
+        </LoadingBoundary>
       )}
     </>
   );

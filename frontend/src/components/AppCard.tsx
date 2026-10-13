@@ -1,15 +1,16 @@
 import { useState } from "react";
 import { ArrowUpRight, Book, Check, Clock, Timer, Antenna, ShieldCheck } from "iconoir-react";
+import { AnimatePresence, motion } from "motion/react";
 
 import { fetchRunbook, resolveIncident } from "../api";
 import { centralTimestamp } from "../time";
 import type { CheckResult, Incident } from "../types";
 import { Card } from "./primitives/Card";
 import { StatusBadge } from "./StatusBadge";
+import { motionDuration, motionEase, pressTransition } from "../theme/motion";
 
 interface AppCardProps {
   result: CheckResult;
-  index: number;
   openIncident?: Incident;
   onIncidentResolved?: () => void;
 }
@@ -21,7 +22,7 @@ function formatMetric(value: string | number | boolean): string {
   return String(value);
 }
 
-export function AppCard({ result, index, openIncident, onIncidentResolved }: AppCardProps) {
+export function AppCard({ result, openIncident, onIncidentResolved }: AppCardProps) {
   const metricEntries = Object.entries(result.metrics).slice(0, 3);
   const [runbook, setRunbook] = useState<string | null | undefined>(undefined);
   const [resolving, setResolving] = useState(false);
@@ -53,7 +54,6 @@ export function AppCard({ result, index, openIncident, onIncidentResolved }: App
     <Card
       id={`app-${result.app_id}`}
       className={`app-card state-${result.state}`}
-      style={{ "--card-index": index } as React.CSSProperties}
     >
       <div className="card-topline">
         <span className="card-category">{result.category}</span>
@@ -65,9 +65,17 @@ export function AppCard({ result, index, openIncident, onIncidentResolved }: App
           <p>{result.description}</p>
         </div>
         {result.product_url ? (
-          <a className="launch-button" href={result.product_url} target="_blank" rel="noreferrer" aria-label={`Open ${result.name}`}>
+          <motion.a
+            className="launch-button"
+            href={result.product_url}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`Open ${result.name}`}
+            whileTap={{ scale: 0.94 }}
+            transition={pressTransition}
+          >
             <ArrowUpRight width={18} height={18} aria-hidden="true" />
-          </a>
+          </motion.a>
         ) : (
           <span className="launch-button launch-button-disabled" aria-hidden="true">
             <ArrowUpRight width={18} height={18} />
@@ -110,34 +118,52 @@ export function AppCard({ result, index, openIncident, onIncidentResolved }: App
         )}
       </div>
       {result.detail && <p className="card-detail">{result.detail}</p>}
-      {openIncident && (
-        <div className="incident-banner">
-          <div className="incident-banner-row">
-            <span>Open incident since {formatCheckedAt(openIncident.started_at)}</span>
-            <div className="incident-actions">
-              <button type="button" className="link-button" onClick={() => void handleViewRunbook()}>
-                <Book width={14} height={14} aria-hidden="true" />
-                {runbook !== undefined ? "Hide runbook" : "View runbook"}
-              </button>
-              <button
-                type="button"
-                className="link-button"
-                onClick={() => void handleResolve()}
-                disabled={resolving}
-              >
-                <Check width={14} height={14} aria-hidden="true" />
-                Mark resolved
-              </button>
+      <AnimatePresence initial={false}>
+        {openIncident && (
+          <motion.div
+            className="incident-banner"
+            layout
+            initial={{ opacity: 0, height: 0, marginTop: 0, paddingTop: 0, paddingBottom: 0 }}
+            animate={{ opacity: 1, height: "auto", marginTop: 16, paddingTop: 12, paddingBottom: 12 }}
+            exit={{ opacity: 0, height: 0, marginTop: 0, paddingTop: 0, paddingBottom: 0 }}
+            transition={{ duration: motionDuration.panel, ease: motionEase }}
+          >
+            <div className="incident-banner-row">
+              <span>Open incident since {formatCheckedAt(openIncident.started_at)}</span>
+              <div className="incident-actions">
+                <motion.button type="button" className="link-button" onClick={() => void handleViewRunbook()} whileTap={{ scale: 0.97 }}>
+                  <Book width={14} height={14} aria-hidden="true" />
+                  {runbook !== undefined ? "Hide runbook" : "View runbook"}
+                </motion.button>
+                <motion.button
+                  type="button"
+                  className="link-button"
+                  onClick={() => void handleResolve()}
+                  disabled={resolving}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  <Check width={14} height={14} aria-hidden="true" />
+                  Mark resolved
+                </motion.button>
+              </div>
             </div>
-          </div>
-          {resolveError && <p role="alert">{resolveError}</p>}
-          {runbook !== undefined && (
-            <pre className="runbook-text">
-              {runbook ?? "No runbook has been written for this app yet."}
-            </pre>
-          )}
-        </div>
-      )}
+            {resolveError && <p role="alert">{resolveError}</p>}
+            <AnimatePresence initial={false}>
+              {runbook !== undefined && (
+                <motion.pre
+                  className="runbook-text"
+                  initial={{ opacity: 0, height: 0, marginTop: 0, paddingTop: 0, paddingBottom: 0 }}
+                  animate={{ opacity: 1, height: "auto", marginTop: 10, paddingTop: 12, paddingBottom: 12 }}
+                  exit={{ opacity: 0, height: 0, marginTop: 0, paddingTop: 0, paddingBottom: 0 }}
+                  transition={{ duration: motionDuration.standard, ease: motionEase }}
+                >
+                  {runbook ?? "No runbook has been written for this app yet."}
+                </motion.pre>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {metricEntries.length > 0 && (
         <div className="metric-strip">
           {metricEntries.map(([key, value]) => (

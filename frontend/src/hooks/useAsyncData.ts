@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface UseAsyncDataResult<T> {
   data: T | null;
@@ -20,13 +20,20 @@ export function useAsyncData<T>(fetcher: (forceRefresh: boolean) => Promise<T>):
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dataRef = useRef<T | null>(null);
 
   const reload = useCallback(
     async (forceRefresh = false) => {
       setError(null);
-      if (forceRefresh) setRefreshing(true);
+      if (forceRefresh) {
+        setRefreshing(true);
+      } else if (dataRef.current === null) {
+        setLoading(true);
+      }
       try {
-        setData(await fetcher(forceRefresh));
+        const nextData = await fetcher(forceRefresh);
+        dataRef.current = nextData;
+        setData(nextData);
       } catch (requestError) {
         setError(requestError instanceof Error ? requestError.message : "Unable to reach the dashboard service.");
       } finally {

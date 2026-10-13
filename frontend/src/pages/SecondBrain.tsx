@@ -9,7 +9,9 @@ import { neighborhood } from "../components/knowledge/graphLayout";
 import { Landing, PortalPage } from "../components/knowledge/Portals";
 import { Card } from "../components/primitives/Card";
 import { EmptyState } from "../components/primitives/EmptyState";
+import { LoadingBoundary } from "../components/primitives/LoadingBoundary";
 import { PageHeader } from "../components/primitives/PageHeader";
+import { Skeleton, SkeletonStack } from "../components/primitives/Skeleton";
 import { Table, type Column } from "../components/primitives/Table";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { readToken, writeToken } from "../token";
@@ -90,7 +92,7 @@ function Vault({ token, onAuthError }: { token: string; onAuthError: () => void 
 
   const error = notes.error ?? portals.error;
   if (error) return <EmptyState message={error} />;
-  if (!notes.data || !portals.data) return <EmptyState message="Loading…" />;
+  if (!notes.data || !portals.data) return <LoadingBoundary loading hasData={false} label="Loading knowledge base" skeleton={<><Skeleton height={150} /><div style={{ height: 12 }} /><SkeletonStack rows={5} rowHeight={44} /></>} empty={null}>{null}</LoadingBoundary>;
 
   if (!splat) return <Landing portals={portals.data} notes={notes.data} />;
   if (splat === "all") {
@@ -117,7 +119,13 @@ function Vault({ token, onAuthError }: { token: string; onAuthError: () => void 
           ← Portals
         </Link>
         <PageHeader title="Graph" description="Every note and the wikilinks between them." />
-        {graph.data ? <Graph graph={graph.data} /> : <EmptyState message={graph.error ?? "Loading…"} />}
+        {graph.error ? (
+          <EmptyState message={graph.error} />
+        ) : (
+          <LoadingBoundary loading={graph.loading} hasData={Boolean(graph.data)} label="Loading knowledge graph" skeleton={<Skeleton height={420} />} empty={<EmptyState message="No graph data is available." />}>
+            {graph.data && <Graph graph={graph.data} />}
+          </LoadingBoundary>
+        )}
       </>
     );
   }
@@ -138,7 +146,7 @@ function ArticlePage({
   guard: Guard;
   graph: VaultGraph | null;
 }) {
-  const { data, error } = useAsyncData(useCallback(() => guard(fetchNote(token, path)), [guard, token, path]));
+  const { data, loading, error } = useAsyncData(useCallback(() => guard(fetchNote(token, path)), [guard, token, path]));
   if (error) {
     return (
       <>
@@ -149,7 +157,7 @@ function ArticlePage({
       </>
     );
   }
-  if (!data || data.path !== path) return <EmptyState message="Loading…" />;
+  if (!data || data.path !== path) return <LoadingBoundary loading={loading} hasData={false} label="Loading article" skeleton={<><Skeleton height={44} /><div style={{ height: 12 }} /><Skeleton height={360} /></>} empty={<EmptyState message="No such article." />}>{null}</LoadingBoundary>;
   return (
     <>
       <Link className="ui-stat-label" to={`/knowledge/${data.portal}`}>

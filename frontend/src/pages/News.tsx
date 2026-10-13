@@ -4,7 +4,9 @@ import { Bookmark, BookmarkSolid, Refresh, Xmark } from "iconoir-react";
 import { fetchNews, setNewsState } from "../api";
 import { EmptyState } from "../components/primitives/EmptyState";
 import { ErrorState } from "../components/primitives/ErrorState";
+import { LoadingBoundary, RefreshOverlay } from "../components/primitives/LoadingBoundary";
 import { PageHeader } from "../components/primitives/PageHeader";
+import { SkeletonStack } from "../components/primitives/Skeleton";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { centralTimestamp, humanizeTimestamp } from "../time";
 import { readToken, readWriteToken } from "../token";
@@ -125,64 +127,74 @@ export default function News() {
         <EmptyState message="Add your dashboard token in Settings to view news." />
       ) : error ? (
         <ErrorState message={error} onRetry={() => void reload()} />
-      ) : loading || !data ? null : (
-        <>
-          {!data.freshness_at && <EmptyState message="No feed has refreshed successfully yet." />}
-          {data.freshness_at && failing.length > 0 && (
-            <p role="status" className="muted">
-              Showing last saved items; {failing.length} source{failing.length === 1 ? "" : "s"} failed to refresh:{" "}
-              {failing.map((s) => s.source).join(", ")}.
-            </p>
-          )}
-          {actionError && <p role="alert">{actionError}</p>}
-          <div className="news-toolbar">
-            <div className="coms-filter-group" role="group" aria-label="Show">
-              {(
-                [
-                  ["all", `All ${items.length}`],
-                  ["unread", `Unread ${unreadCount}`],
-                  ["saved", `Saved ${savedCount}`],
-                ] as const
-              ).map(([value, label]) => (
-                <button key={value} type="button" className={chip(view === value)} aria-pressed={view === value} onClick={() => setView(value)}>
-                  {label}
-                </button>
-              ))}
-            </div>
-            <div className="coms-filter-group" role="group" aria-label="Topic">
-              {[null, ...data.topics].map((t) => (
-                <button key={t ?? "all"} type="button" className={chip(topic === t)} aria-pressed={topic === t} onClick={() => setTopic(t)}>
-                  {t ?? "All topics"}
-                </button>
-              ))}
-            </div>
-            <input
-              className="news-search"
-              type="search"
-              placeholder="Search headlines"
-              aria-label="Search headlines"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
-          {!lead ? (
-            data.freshness_at && <EmptyState message="No articles match." />
-          ) : (
-            <>
-              {story(lead, true)}
-              {[...groups].map(([name, group]) => (
-                <section key={name} className="news-section" aria-label={name}>
-                  <h2 className="news-section-title">
-                    {name} <span>{group.length}</span>
-                  </h2>
-                  <div className="news-grid">
-                    {group.map((n) => story(n))}
-                  </div>
-                </section>
-              ))}
-            </>
-          )}
-        </>
+      ) : (
+        <RefreshOverlay refreshing={refreshing} label="Refreshing news">
+          <LoadingBoundary
+            loading={loading}
+            hasData={Boolean(data)}
+            label="Loading news"
+            skeleton={<SkeletonStack rows={6} rowHeight={56} />}
+            empty={<EmptyState message="No news data is available." />}
+          >
+            {data && <>
+              {!data.freshness_at && <EmptyState message="No feed has refreshed successfully yet." />}
+              {data.freshness_at && failing.length > 0 && (
+                <p role="status" className="muted">
+                  Showing last saved items; {failing.length} source{failing.length === 1 ? "" : "s"} failed to refresh:{" "}
+                  {failing.map((s) => s.source).join(", ")}.
+                </p>
+              )}
+              {actionError && <p role="alert">{actionError}</p>}
+              <div className="news-toolbar">
+                <div className="coms-filter-group" role="group" aria-label="Show">
+                  {(
+                    [
+                      ["all", `All ${items.length}`],
+                      ["unread", `Unread ${unreadCount}`],
+                      ["saved", `Saved ${savedCount}`],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <button key={value} type="button" className={chip(view === value)} aria-pressed={view === value} onClick={() => setView(value)}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="coms-filter-group" role="group" aria-label="Topic">
+                  {[null, ...data.topics].map((t) => (
+                    <button key={t ?? "all"} type="button" className={chip(topic === t)} aria-pressed={topic === t} onClick={() => setTopic(t)}>
+                      {t ?? "All topics"}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  className="news-search"
+                  type="search"
+                  placeholder="Search headlines"
+                  aria-label="Search headlines"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+              </div>
+              {!lead ? (
+                data.freshness_at && <EmptyState message="No articles match." />
+              ) : (
+                <>
+                  {story(lead, true)}
+                  {[...groups].map(([name, group]) => (
+                    <section key={name} className="news-section" aria-label={name}>
+                      <h2 className="news-section-title">
+                        {name} <span>{group.length}</span>
+                      </h2>
+                      <div className="news-grid">
+                        {group.map((n) => story(n))}
+                      </div>
+                    </section>
+                  ))}
+                </>
+              )}
+            </>}
+          </LoadingBoundary>
+        </RefreshOverlay>
       )}
     </>
   );

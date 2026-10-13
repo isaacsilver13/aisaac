@@ -6,7 +6,9 @@ import { AccountsPanel } from "../components/dashboard/AccountsPanel";
 import { Badge } from "../components/primitives/Badge";
 import { EmptyState } from "../components/primitives/EmptyState";
 import { ErrorState } from "../components/primitives/ErrorState";
+import { LoadingBoundary, RefreshOverlay } from "../components/primitives/LoadingBoundary";
 import { PageHeader } from "../components/primitives/PageHeader";
+import { SkeletonStack } from "../components/primitives/Skeleton";
 import { Table, type Column } from "../components/primitives/Table";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { centralTimestamp } from "../time";
@@ -106,8 +108,17 @@ export default function Shoes() {
         <EmptyState message="Add your dashboard token in Settings to view shoes." />
       ) : error ? (
         <ErrorState message={error} onRetry={() => void reload()} />
-      ) : loading || !data ? null : (
-        <>
+      ) : (
+        <RefreshOverlay refreshing={refreshing} label="Refreshing shoes">
+          <LoadingBoundary
+            loading={loading}
+            hasData={Boolean(data)}
+            label="Loading shoes"
+            skeleton={<SkeletonStack rows={6} rowHeight={52} />}
+            empty={<EmptyState message="No shoe data is available." />}
+          >
+            {data && (
+              <>
           {!data.configured && (
             <p role="status" className="muted">
               No listing provider is configured. Watches work as saved links; price tracking is off.
@@ -154,7 +165,10 @@ export default function Shoes() {
             />
           )}
           <AccountsPanel />
-        </>
+              </>
+            )}
+          </LoadingBoundary>
+        </RefreshOverlay>
       )}
     </>
   );

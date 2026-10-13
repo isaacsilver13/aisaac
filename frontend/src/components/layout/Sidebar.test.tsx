@@ -10,9 +10,9 @@ afterEach(cleanup);
 // jsdom has no matchMedia, which the theme toggle reads.
 window.matchMedia ??= (() => ({ matches: false })) as unknown as typeof window.matchMedia;
 
-function setup(collapsed = false) {
+function setup({ collapsed = false, initialEntry = "/" } = {}) {
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <Sidebar
         status={{ label: "ok", tone: "success" }}
         apps={[{ id: "a", name: "Alpha" }]}
@@ -41,8 +41,15 @@ describe("Sidebar", () => {
   });
 
   it("keeps Life links reachable as icons when the sidebar is collapsed", () => {
-    setup(true);
+    setup({ collapsed: true });
     expect(screen.queryByRole("button", { name: "Life" })).toBeNull();
     expect(screen.getByTitle("Shoes")).toHaveAttribute("href", "/shoes");
+  });
+
+  it("keeps the application selected on nested tabs", () => {
+    setup({ initialEntry: "/applications/a/health" });
+
+    expect(screen.getByRole("link", { name: "Alpha" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Alpha" })).toHaveClass("app-sidebar-link-active");
   });
 });

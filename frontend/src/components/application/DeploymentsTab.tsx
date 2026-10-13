@@ -6,6 +6,8 @@ import { readToken } from "../../token";
 import type { FlyRelease } from "../../types";
 import { EmptyState } from "../primitives/EmptyState";
 import { ErrorState } from "../primitives/ErrorState";
+import { LoadingBoundary } from "../primitives/LoadingBoundary";
+import { SkeletonStack } from "../primitives/Skeleton";
 import { StatusDot } from "../primitives/StatusDot";
 import { Table, type Column } from "../primitives/Table";
 import { centralTimestamp } from "../../time";
@@ -35,12 +37,22 @@ export function DeploymentsTab({ appId }: { appId: string }) {
 
   if (!token) return <EmptyState message="Add your dashboard token in Settings to view deployments." />;
   if (error) return <ErrorState message={error} onRetry={() => void reload()} />;
-  if (loading || !data) return null;
-  if (!data.fly_app) return <EmptyState message="This app is not hosted on Fly, or has no Fly app configured." />;
   return (
-    <>
-      <div className="ui-stat-label" style={{ marginBottom: 8 }}>Releases of {data.fly_app}</div>
-      <Table columns={columns} rows={data.releases} rowKey={(r) => String(r.version)} emptyMessage="No releases." />
-    </>
+    <LoadingBoundary
+      loading={loading}
+      hasData={Boolean(data)}
+      label="Loading deployments"
+      skeleton={<SkeletonStack rows={5} rowHeight={48} />}
+      empty={<EmptyState message="No deployment data is available." />}
+    >
+      {data?.fly_app ? (
+        <>
+          <div className="ui-stat-label" style={{ marginBottom: 8 }}>Releases of {data.fly_app}</div>
+          <Table columns={columns} rows={data.releases} rowKey={(r) => String(r.version)} emptyMessage="No releases." />
+        </>
+      ) : (
+        <EmptyState message="This app is not hosted on Fly, or has no Fly app configured." />
+      )}
+    </LoadingBoundary>
   );
 }

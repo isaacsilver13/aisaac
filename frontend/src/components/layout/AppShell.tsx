@@ -1,4 +1,4 @@
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 
@@ -8,6 +8,7 @@ import type { Tone } from "../primitives/tone";
 import { MobileDrawer } from "./MobileDrawer";
 import { MobileTopBar } from "./MobileTopBar";
 import { Sidebar } from "./Sidebar";
+import { motionDuration, motionEase } from "../../theme/motion";
 
 interface AppShellProps {
   children: ReactNode;
@@ -55,16 +56,19 @@ export function AppShell({ children }: AppShellProps) {
         onClose={() => setDrawerOpen(false)}
         apps={(data?.results ?? []).map((r) => ({ id: r.app_id, name: r.name }))}
       />
-      {/* Keyed by top-level section so tab changes inside a page do not remount it. */}
-      <motion.main
-        key={section}
-        className="app-main"
-        initial={{ opacity: 0, y: 4 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.15, ease: "easeOut" }}
-      >
-        {children}
-      </motion.main>
+      {/* Keyed by top-level section so tabs can manage their own local transitions. */}
+      <AnimatePresence initial={false} mode="wait">
+        <motion.main
+          key={section}
+          className="app-main"
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -3 }}
+          transition={{ duration: motionDuration.standard, ease: motionEase }}
+        >
+          {children}
+        </motion.main>
+      </AnimatePresence>
     </div>
   );
 }

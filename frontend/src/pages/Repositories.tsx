@@ -3,7 +3,9 @@ import { Refresh } from "iconoir-react";
 import { fetchAnalytics } from "../api";
 import { EmptyState } from "../components/primitives/EmptyState";
 import { ErrorState } from "../components/primitives/ErrorState";
+import { LoadingBoundary, RefreshOverlay } from "../components/primitives/LoadingBoundary";
 import { PageHeader } from "../components/primitives/PageHeader";
+import { SkeletonStack } from "../components/primitives/Skeleton";
 import { Table } from "../components/primitives/Table";
 import { repoColumns, repoFilters, repoSearchText } from "../components/RepoActivityCard";
 import { useAsyncData } from "../hooks/useAsyncData";
@@ -25,10 +27,18 @@ export default function Repositories() {
       />
       {error ? (
         <ErrorState message={error} onRetry={() => void reload(true)} retrying={refreshing} />
-      ) : loading ? null : repos.length > 0 ? (
-        <Table columns={repoColumns} rows={repos} rowKey={(r) => r.repo_id} searchText={repoSearchText} filters={repoFilters} />
       ) : (
-        <EmptyState message="No repositories found for isaacsilver13." />
+        <RefreshOverlay refreshing={refreshing}>
+          <LoadingBoundary
+            loading={loading}
+            hasData={repos.length > 0}
+            label="Loading repositories"
+            skeleton={<SkeletonStack rows={6} rowHeight={52} />}
+            empty={<EmptyState message="No repositories found for isaacsilver13." />}
+          >
+            <Table columns={repoColumns} rows={repos} rowKey={(r) => r.repo_id} searchText={repoSearchText} filters={repoFilters} />
+          </LoadingBoundary>
+        </RefreshOverlay>
       )}
     </>
   );

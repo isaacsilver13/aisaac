@@ -4,9 +4,11 @@ import { fetchAutomationRuns, fetchAutomations } from "../api";
 import { Card } from "../components/primitives/Card";
 import { EmptyState } from "../components/primitives/EmptyState";
 import { ErrorState } from "../components/primitives/ErrorState";
+import { LoadingBoundary } from "../components/primitives/LoadingBoundary";
 import { PageHeader } from "../components/primitives/PageHeader";
 import { SectionHeader } from "../components/primitives/SectionHeader";
 import { Stat } from "../components/primitives/Stat";
+import { SkeletonStack } from "../components/primitives/Skeleton";
 import { StatusDot } from "../components/primitives/StatusDot";
 import { Table, type Column } from "../components/primitives/Table";
 import type { Tone } from "../components/primitives/tone";
@@ -81,19 +83,25 @@ function RunHistory({ token, automation }: { token: string; automation: Automati
       <SectionHeader title={`${automation.name}: recent runs`} description="Newest last on the timeline; up to 30 runs over the last 30 days." />
       {error ? (
         <ErrorState message={error} onRetry={() => void reload()} />
-      ) : loading ? null : oldestFirst.length === 0 ? (
-        <EmptyState message={automation.kind === "poller" ? "The health poller keeps no run log; see each app's Health tab." : "No runs recorded yet."} />
       ) : (
-        <>
-          <div role="list" aria-label="Run timeline" style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "8px 0 16px" }}>
-            {oldestFirst.map((r, i) => (
-              <span role="listitem" key={`${r.ran_at}-${i}`} title={`${when(r.ran_at)}${r.detail ? ` · ${r.detail}` : ""}`}>
-                <StatusDot tone={r.ok ? "success" : "error"} label={`${when(r.ran_at)} ${r.ok ? "ok" : "failed"}`} />
-              </span>
-            ))}
-          </div>
-          <Table columns={runColumns} rows={data ?? []} rowKey={(r) => r.ran_at + r.detail} />
-        </>
+        <LoadingBoundary
+          loading={loading}
+          hasData={oldestFirst.length > 0}
+          label={`Loading ${automation.name} runs`}
+          skeleton={<SkeletonStack rows={4} rowHeight={42} />}
+          empty={<EmptyState message={automation.kind === "poller" ? "The health poller keeps no run log; see each app's Health tab." : "No runs recorded yet."} />}
+        >
+          <>
+            <div role="list" aria-label="Run timeline" style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "8px 0 16px" }}>
+              {oldestFirst.map((r, i) => (
+                <span role="listitem" key={`${r.ran_at}-${i}`} title={`${when(r.ran_at)}${r.detail ? ` · ${r.detail}` : ""}`}>
+                  <StatusDot tone={r.ok ? "success" : "error"} label={`${when(r.ran_at)} ${r.ok ? "ok" : "failed"}`} />
+                </span>
+              ))}
+            </div>
+            <Table columns={runColumns} rows={data ?? []} rowKey={(r) => r.ran_at + r.detail} />
+          </>
+        </LoadingBoundary>
       )}
     </section>
   );
@@ -112,24 +120,32 @@ export default function Automations() {
         <EmptyState message="Add your dashboard token in Settings to view automations." />
       ) : error ? (
         <ErrorState message={error} onRetry={() => void reload()} />
-      ) : loading || !data ? null : (
-        <>
-          <Card style={{ marginBottom: 16 }}>
-            <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" }}>
-              {SUMMARY.map((s) => (
-                <Stat key={s} label={s} value={<><StatusDot tone={TONE[s]} label={s} /> {data.filter((a) => a.status === s).length}</>} />
-              ))}
-            </div>
-          </Card>
-          <Table
-            columns={columns((a) => setSelectedId(a.id))}
-            rows={data}
-            rowKey={(a) => a.id}
-            searchText={(a) => `${a.name} ${a.detail} ${a.last_error ?? ""}`}
-            filters={[{ label: "Status", value: (a) => a.status }, { label: "Kind", value: (a) => a.kind }]}
-          />
-          {selected && <RunHistory key={selected.id} token={token} automation={selected} />}
-        </>
+      ) : (
+        <LoadingBoundary
+          loading={loading}
+          hasData={Boolean(data)}
+          label="Loading automations"
+          skeleton={<SkeletonStack rows={6} rowHeight={46} />}
+          empty={<EmptyState message="No automation data is available." />}
+        >
+          {data && <>
+            <Card style={{ marginBottom: 16 }}>
+              <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" }}>
+                {SUMMARY.map((s) => (
+                  <Stat key={s} label={s} value={<><StatusDot tone={TONE[s]} label={s} /> {data.filter((a) => a.status === s).length}</>} />
+                ))}
+              </div>
+            </Card>
+            <Table
+              columns={columns((a) => setSelectedId(a.id))}
+              rows={data}
+              rowKey={(a) => a.id}
+              searchText={(a) => `${a.name} ${a.detail} ${a.last_error ?? ""}`}
+              filters={[{ label: "Status", value: (a) => a.status }, { label: "Kind", value: (a) => a.kind }]}
+            />
+            {selected && <RunHistory key={selected.id} token={token} automation={selected} />}
+          </>}
+        </LoadingBoundary>
       )}
     </>
   );

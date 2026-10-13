@@ -4,9 +4,11 @@ import { Link } from "react-router-dom";
 
 import { fetchAnalytics, fetchAutomations, fetchComsEvents, fetchIncidents } from "../api";
 import { ErrorState } from "../components/primitives/ErrorState";
+import { LoadingBoundary, RefreshOverlay } from "../components/primitives/LoadingBoundary";
 import { PageHeader } from "../components/primitives/PageHeader";
 import { SectionHeader } from "../components/primitives/SectionHeader";
 import { StatusDot } from "../components/primitives/StatusDot";
+import { SkeletonStack } from "../components/primitives/Skeleton";
 import { Table, type Column } from "../components/primitives/Table";
 import type { Tone } from "../components/primitives/tone";
 import { useAsyncData } from "../hooks/useAsyncData";
@@ -155,26 +157,36 @@ export default function Tasks() {
         }
       />
       {error && <ErrorState message={error} onRetry={reloadAll} retrying={refreshing} />}
-      {loading ? null : groupBy === "none" ? (
-        <Table
-          columns={columns}
-          rows={tasks}
-          rowKey={(t) => t.key}
-          searchText={(t) => `${t.title} ${t.source}`}
-          filters={[{ label: "Kind", value: (t) => t.kind }, { label: "Source", value: (t) => t.source }, { label: "Flag", value: (t) => t.flag }]}
-          emptyMessage="Nothing open."
-        />
-      ) : (
-        groups.map((g) => {
-          const rows = tasks.filter((t) => t[groupBy] === g);
-          return (
-            <section key={g} style={{ marginBottom: 24 }}>
-              <SectionHeader title={`${g} (${rows.length})`} />
-              <Table columns={columns} rows={rows} rowKey={(t) => t.key} />
-            </section>
-          );
-        })
-      )}
+      <RefreshOverlay refreshing={refreshing}>
+        <LoadingBoundary
+          loading={loading}
+          hasData
+          label="Loading tasks"
+          skeleton={<SkeletonStack rows={5} rowHeight={48} />}
+          empty={null}
+        >
+          {groupBy === "none" ? (
+            <Table
+              columns={columns}
+              rows={tasks}
+              rowKey={(t) => t.key}
+              searchText={(t) => `${t.title} ${t.source}`}
+              filters={[{ label: "Kind", value: (t) => t.kind }, { label: "Source", value: (t) => t.source }, { label: "Flag", value: (t) => t.flag }]}
+              emptyMessage="Nothing open."
+            />
+          ) : (
+            groups.map((g) => {
+              const rows = tasks.filter((t) => t[groupBy] === g);
+              return (
+                <section key={g} style={{ marginBottom: 24 }}>
+                  <SectionHeader title={`${g} (${rows.length})`} />
+                  <Table columns={columns} rows={rows} rowKey={(t) => t.key} />
+                </section>
+              );
+            })
+          )}
+        </LoadingBoundary>
+      </RefreshOverlay>
     </>
   );
 }

@@ -1,9 +1,11 @@
 import { useEffect, useRef } from "react";
-import { NavLink } from "react-router-dom";
+import { AnimatePresence, motion } from "motion/react";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { Xmark } from "iconoir-react";
 
 import { AppIcon } from "../application/AppIcon";
 import { NAV_ITEMS, isNavGroup } from "./navItems";
+import { motionDuration, motionEase } from "../../theme/motion";
 
 interface MobileDrawerProps {
   open: boolean;
@@ -14,6 +16,7 @@ interface MobileDrawerProps {
 export function MobileDrawer({ open, onClose, apps }: MobileDrawerProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
 
   useEffect(() => {
     if (!open) return;
@@ -50,77 +53,94 @@ export function MobileDrawer({ open, onClose, apps }: MobileDrawerProps) {
     };
   }, [open, onClose]);
 
-  if (!open) return null;
-
   return (
-    <div className="app-drawer-overlay" onClick={onClose}>
-      <div
-        ref={dialogRef}
-        className="app-drawer"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Navigation menu"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <button
-          type="button"
-          ref={closeButtonRef}
-          className="app-drawer-close"
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="app-drawer-overlay"
           onClick={onClose}
-          aria-label="Close navigation menu"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: motionDuration.standard }}
         >
-          <Xmark width={20} height={20} aria-hidden="true" />
-        </button>
-        <nav className="app-sidebar-nav">
-          {NAV_ITEMS.map((item) => isNavGroup(item) ? (
-            <div key={item.label}>
-              <div className="app-sidebar-link app-drawer-group">
-                <item.icon width={17} height={17} aria-hidden="true" />
-                <span>{item.label}</span>
-              </div>
-              <div className="app-drawer-subnav" aria-label={item.label}>
-                {item.children.map((child) => (
+          <motion.div
+            ref={dialogRef}
+            className="app-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation menu"
+            onClick={(event) => event.stopPropagation()}
+            initial={{ x: "-100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "-100%" }}
+            transition={{ duration: motionDuration.panel, ease: motionEase }}
+          >
+            <button
+              type="button"
+              ref={closeButtonRef}
+              className="app-drawer-close"
+              onClick={onClose}
+              aria-label="Close navigation menu"
+            >
+              <Xmark width={20} height={20} aria-hidden="true" />
+            </button>
+            <nav className="app-sidebar-nav">
+              {NAV_ITEMS.map((item) => isNavGroup(item) ? (
+                <div key={item.label}>
+                  <div className="app-sidebar-link app-drawer-group">
+                    <item.icon width={17} height={17} aria-hidden="true" />
+                    <span>{item.label}</span>
+                  </div>
+                  <div className="app-drawer-subnav" aria-label={item.label}>
+                    {item.children.map((child) => (
+                      <NavLink
+                        key={child.to}
+                        to={child.to}
+                        onClick={onClose}
+                        className={({ isActive }) => `app-sidebar-link${isActive ? " app-sidebar-link-active" : ""}`}
+                      >
+                        <span>{child.label}</span>
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div key={item.to}>
                   <NavLink
-                    key={child.to}
-                    to={child.to}
+                    to={item.to}
+                    end={item.end}
                     onClick={onClose}
                     className={({ isActive }) => `app-sidebar-link${isActive ? " app-sidebar-link-active" : ""}`}
                   >
-                    <span>{child.label}</span>
+                    <item.icon width={17} height={17} aria-hidden="true" />
+                    <span>{item.label}</span>
                   </NavLink>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div key={item.to}>
-              <NavLink
-                to={item.to}
-                end={item.end}
-                onClick={onClose}
-                className={({ isActive }) => `app-sidebar-link${isActive ? " app-sidebar-link-active" : ""}`}
-              >
-                <item.icon width={17} height={17} aria-hidden="true" />
-                <span>{item.label}</span>
-              </NavLink>
-              {item.hasApps && apps.length > 0 && (
-                <div className="app-drawer-subnav" aria-label="Applications">
-                  {apps.map((app) => (
-                    <NavLink
-                      key={app.id}
-                      to={`/applications/${app.id}/overview`}
-                      onClick={onClose}
-                      className={({ isActive }) => `app-sidebar-link${isActive ? " app-sidebar-link-active" : ""}`}
-                    >
-                      <AppIcon appId={app.id} size={15} />
-                      <span>{app.name}</span>
-                    </NavLink>
-                  ))}
+                  {item.hasApps && apps.length > 0 && (
+                    <div className="app-drawer-subnav" aria-label="Applications">
+                      {apps.map((app) => {
+                        const isActive = location.pathname.startsWith(`/applications/${app.id}/`);
+                        return (
+                          <Link
+                            key={app.id}
+                            to={`/applications/${app.id}/overview`}
+                            onClick={onClose}
+                            className={`app-sidebar-link${isActive ? " app-sidebar-link-active" : ""}`}
+                            aria-current={isActive ? "page" : undefined}
+                          >
+                            <AppIcon appId={app.id} size={15} />
+                            <span>{app.name}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
-        </nav>
-      </div>
-    </div>
+              ))}
+            </nav>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

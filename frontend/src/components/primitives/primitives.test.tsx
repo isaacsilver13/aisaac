@@ -6,7 +6,9 @@ import { Badge } from "./Badge";
 import { Card, CardContent, CardHeader } from "./Card";
 import { EmptyState } from "./EmptyState";
 import { ErrorState } from "./ErrorState";
+import { LoadingBoundary, RefreshOverlay } from "./LoadingBoundary";
 import { PageHeader } from "./PageHeader";
+import { SkeletonStack } from "./Skeleton";
 import { Stat } from "./Stat";
 import { StatusDot } from "./StatusDot";
 
@@ -73,5 +75,30 @@ describe("PageHeader", () => {
     expect(screen.getByRole("heading", { name: "Command Center" })).toBeInTheDocument();
     expect(screen.getByText("Monitor everything")).toBeInTheDocument();
     expect(screen.getByText("Last updated 12:42 PM")).toBeInTheDocument();
+  });
+});
+
+describe("LoadingBoundary", () => {
+  it("shows a labeled loading placeholder instead of empty content", () => {
+    render(
+      <LoadingBoundary loading hasData={false} label="Loading releases" skeleton={<SkeletonStack rows={3} />} empty={<p>No releases</p>}>
+        <p>Release history</p>
+      </LoadingBoundary>,
+    );
+
+    expect(screen.getByRole("status", { name: "Loading releases" })).toBeInTheDocument();
+    expect(screen.queryByText("Release history")).not.toBeInTheDocument();
+    expect(screen.queryByText("No releases")).not.toBeInTheDocument();
+  });
+
+  it("keeps loaded content visible beneath a refresh indicator", () => {
+    render(
+      <RefreshOverlay refreshing label="Refreshing releases">
+        <p>Existing release history</p>
+      </RefreshOverlay>,
+    );
+
+    expect(screen.getByText("Existing release history")).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Refreshing releases" })).toHaveTextContent("Refreshing releases");
   });
 });

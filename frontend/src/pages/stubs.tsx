@@ -1,4 +1,5 @@
 import { NavLink, Navigate, useLocation, useParams } from "react-router-dom";
+import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 
 import { fetchApps } from "../api";
 import { AppIcon } from "../components/application/AppIcon";
@@ -10,6 +11,7 @@ import { StackTab } from "../components/application/StackTab";
 import { EmptyState } from "../components/primitives/EmptyState";
 import { PageHeader } from "../components/primitives/PageHeader";
 import { useAsyncData } from "../hooks/useAsyncData";
+import { motionDuration, motionEase } from "../theme/motion";
 
 /** Placeholder for sections the redesign hasn't built yet. */
 export function ComingSoon({ title }: { title: string }) {
@@ -31,26 +33,43 @@ export function ApplicationPage() {
   return (
     <>
       <PageHeader title={name} icon={appId && <AppIcon appId={appId} size={22} />} />
-      <nav className="tab-row" aria-label="Application sections">
-        {APP_TABS.map((t) => (
-          <NavLink key={t} to={`/applications/${appId}/${t}`} className={({ isActive }) => `tab-link${isActive ? " tab-link-active" : ""}`}>
-            {capitalize(t)}
-          </NavLink>
-        ))}
-      </nav>
-      {tab === "health" && appId ? (
-        <HealthTab appId={appId} />
-      ) : tab === "stack" && appId ? (
-        <StackTab appId={appId} />
-      ) : tab === "deployments" && appId ? (
-        <DeploymentsTab appId={appId} />
-      ) : tab === "logs" && appId ? (
-        <LogsTab appId={appId} />
-      ) : tab === "overview" && appId ? (
-        <OverviewTab appId={appId} />
-      ) : (
-        <EmptyState message={`${capitalize(tab ?? "overview")} is not built yet.`} />
-      )}
+      <LayoutGroup id={`application-tabs-${appId ?? "unknown"}`}>
+        <nav className="tab-row" aria-label="Application sections">
+          {APP_TABS.map((t) => (
+            <NavLink key={t} to={`/applications/${appId}/${t}`} className={({ isActive }) => `tab-link${isActive ? " tab-link-active" : ""}`}>
+              {({ isActive }) => (
+                <>
+                  {capitalize(t)}
+                  {isActive && <motion.span className="tab-active-indicator" layoutId="active-tab" />}
+                </>
+              )}
+            </NavLink>
+          ))}
+        </nav>
+      </LayoutGroup>
+      <AnimatePresence initial={false} mode="wait">
+        <motion.div
+          key={tab ?? "overview"}
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -3 }}
+          transition={{ duration: motionDuration.standard, ease: motionEase }}
+        >
+          {tab === "health" && appId ? (
+            <HealthTab appId={appId} />
+          ) : tab === "stack" && appId ? (
+            <StackTab appId={appId} />
+          ) : tab === "deployments" && appId ? (
+            <DeploymentsTab appId={appId} />
+          ) : tab === "logs" && appId ? (
+            <LogsTab appId={appId} />
+          ) : tab === "overview" && appId ? (
+            <OverviewTab appId={appId} />
+          ) : (
+            <EmptyState message={`${capitalize(tab ?? "overview")} is not built yet.`} />
+          )}
+        </motion.div>
+      </AnimatePresence>
     </>
   );
 }

@@ -7,10 +7,11 @@ import App from "./App";
 import "@fontsource-variable/inter";
 import "./theme/theme.css";
 import "./styles.css";
+import { motionDuration, motionEase } from "./theme/motion";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <MotionConfig reducedMotion="user">
+    <MotionConfig reducedMotion="user" transition={{ duration: motionDuration.standard, ease: motionEase }}>
       <BrowserRouter>
         <App />
       </BrowserRouter>

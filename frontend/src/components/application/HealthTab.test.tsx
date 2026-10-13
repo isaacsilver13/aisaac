@@ -31,4 +31,27 @@ describe("HealthTab", () => {
     await userEvent.click(screen.getByRole("button", { name: "7d" }));
     await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith("range=7d"))).toBe(true));
   });
+
+  it("replaces the previous range with a labeled loading state", async () => {
+    let resolveSevenDays!: (response: Response) => void;
+    const fetchMock = vi.fn((url: string) => {
+      if (url.includes("range=7d")) {
+        return new Promise<Response>((resolve) => {
+          resolveSevenDays = resolve;
+        });
+      }
+      return Promise.resolve(new Response(JSON.stringify(url.includes("health-history") ? history("24h") : [])));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<HealthTab appId="a" />);
+    expect(await screen.findByText("75%")).toBeTruthy();
+
+    await userEvent.click(screen.getByRole("button", { name: "7d" }));
+    expect(await screen.findByRole("status", { name: "Loading 7d health history" })).toBeTruthy();
+    expect(screen.queryByText("75%")).toBeNull();
+
+    resolveSevenDays(new Response(JSON.stringify(history("7d"))));
+    expect(await screen.findByText("75%")).toBeTruthy();
+  });
 });
