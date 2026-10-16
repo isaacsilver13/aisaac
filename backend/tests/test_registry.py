@@ -17,6 +17,7 @@ SINGLE_HOST_APPS = {
     "portfolio-analysis",
     "aisaac-rocket",
     "chess",
+    "nba-teammates-chain",
 }
 
 
