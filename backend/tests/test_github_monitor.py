@@ -17,7 +17,7 @@ def test_check_repo_reports_success_from_latest_run() -> None:
     repo = _repo()
 
     async def handler(request: httpx.Request) -> httpx.Response:
-        if request.url.path.endswith("/actions/runs"):
+        if request.url.path.endswith("/runs"):
             run = {"status": "completed", "conclusion": "success"}
             return httpx.Response(200, json={"workflow_runs": [run]})
         if request.url.path.endswith("/issues"):
@@ -45,7 +45,7 @@ def test_check_repo_reports_failure_conclusion() -> None:
     repo = _repo()
 
     async def handler(request: httpx.Request) -> httpx.Response:
-        if request.url.path.endswith("/actions/runs"):
+        if request.url.path.endswith("/runs"):
             run = {"status": "completed", "conclusion": "failure"}
             return httpx.Response(200, json={"workflow_runs": [run]})
         return httpx.Response(200, json=[])
@@ -64,7 +64,7 @@ def test_check_repo_filters_pull_requests_out_of_issue_count() -> None:
     repo = _repo()
 
     async def handler(request: httpx.Request) -> httpx.Response:
-        if request.url.path.endswith("/actions/runs"):
+        if request.url.path.endswith("/runs"):
             return httpx.Response(200, json={"workflow_runs": []})
         if request.url.path.endswith("/issues"):
             return httpx.Response(
@@ -94,7 +94,7 @@ def test_check_repo_flags_stale_pull_requests() -> None:
     fresh_opened_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     async def handler(request: httpx.Request) -> httpx.Response:
-        if request.url.path.endswith("/actions/runs"):
+        if request.url.path.endswith("/runs"):
             return httpx.Response(200, json={"workflow_runs": []})
         if request.url.path.endswith("/issues"):
             return httpx.Response(200, json=[])
@@ -205,7 +205,7 @@ def test_check_repo_reports_commit_weeks_languages_and_pr_history() -> None:
 
     async def handler(request: httpx.Request) -> httpx.Response:
         path = request.url.path
-        if path.endswith("/actions/runs"):
+        if path.endswith("/runs"):
             return httpx.Response(200, json={"workflow_runs": []})
         if path.endswith("/stats/commit_activity"):
             weekly = {"week": week, "total": 3, "days": [0, 1, 2, 0, 0, 0, 0]}

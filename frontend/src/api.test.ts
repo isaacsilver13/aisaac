@@ -37,10 +37,10 @@ describe("fetchDashboard", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    await fetchDashboard(true);
+    await fetchDashboard(true, "read-token");
 
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/dashboard?force_refresh=true", {
-      headers: { Accept: "application/json" },
+      headers: { Accept: "application/json", "X-Dashboard-Token": "read-token" },
     });
   });
 
@@ -101,10 +101,10 @@ describe("fetchAnalytics", () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify([]), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await fetchAnalytics(true);
+    await fetchAnalytics(true, "read-token");
 
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/analytics?force_refresh=true", {
-      headers: { Accept: "application/json" },
+      headers: { Accept: "application/json", "X-Dashboard-Token": "read-token" },
     });
   });
 
@@ -136,7 +136,7 @@ describe("fetchComsEvents", () => {
     await expect(fetchComsEvents()).resolves.toEqual([]);
 
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/coms", {
-      headers: { Accept: "application/json" },
+      headers: { Accept: "application/json", "X-Dashboard-Token": "" },
     });
   });
 
@@ -147,7 +147,7 @@ describe("fetchComsEvents", () => {
     await fetchComsEvents("vinyl");
 
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/coms?app_id=vinyl", {
-      headers: { Accept: "application/json" },
+      headers: { Accept: "application/json", "X-Dashboard-Token": "" },
     });
   });
 

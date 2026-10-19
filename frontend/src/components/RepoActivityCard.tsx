@@ -24,6 +24,7 @@ export const repoColumns: Column<RepoActivity>[] = [
   { key: "category", header: "Category", sortValue: (r) => r.category, render: (r) => r.category },
   { key: "language", header: "Language", sortValue: (r) => r.language ?? "", render: (r) => r.language ?? "—" },
   { key: "ci", header: "CI", sortValue: (r) => r.ci_status, render: (r) => <CiStatusBadge status={r.ci_status} /> },
+  { key: "jobs", header: "Jobs", sortValue: (r) => Object.values(r.job_statuses ?? {}).join(), render: (r) => <>{Object.entries(r.job_statuses ?? {}).map(([name, status]) => <span key={name} title={name}>{name.replace(/\.yml$/, "")}: <CiStatusBadge status={status} /> </span>)}</> },
   { key: "prs", header: "Open PRs", align: "right", sortValue: (r) => r.open_pr_count, render: (r) => r.open_pr_count ?? "—" },
   { key: "issues", header: "Open issues", align: "right", sortValue: (r) => r.open_issue_count, render: (r) => r.open_issue_count ?? "—" },
   { key: "commits", header: "Commits (7d)", align: "right", sortValue: (r) => r.commits_last_7d, render: (r) => r.commits_last_7d ?? "—" },

@@ -52,6 +52,7 @@ export interface RepoActivity {
   owner: string;
   repo: string;
   ci_status: CiStatus;
+  job_statuses?: Record<string, CiStatus>;
   open_issue_count: number | null;
   open_pr_count: number | null;
   open_pull_requests: PullRequestSummary[];
