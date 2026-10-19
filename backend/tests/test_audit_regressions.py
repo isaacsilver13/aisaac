@@ -105,3 +105,11 @@ def test_ci_is_independent_of_scheduled_jobs():
         assert all("/actions/workflows/" in path for path in seen)
 
     asyncio.run(check())
+def test_private_curated_repositories_stay_private_when_discovery_fails():
+    from app.github_registry import get_repos, merge_discovered
+
+    fallback = {repo.repo: repo for repo in merge_discovered(get_repos(), None)}
+    for name in ("vinyl", "portfolio_analysis", "nba_teammates_chain"):
+        assert fallback[name].private is True
+
+

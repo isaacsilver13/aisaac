@@ -15,6 +15,7 @@ _REPOS: tuple[RepoDefinition, ...] = (
         category="Collection",
         owner="isaacsilver13",
         repo="vinyl",
+        private=True,
         scheduled_workflows=("app-daily-refresh.yml",),
         ci_workflow="api-ci.yml",
     ),
@@ -56,6 +57,7 @@ _REPOS: tuple[RepoDefinition, ...] = (
         category="Finance",
         owner="isaacsilver13",
         repo="portfolio_analysis",
+        private=True,
         scheduled_workflows=("refresh-prices.yml",),
     ),
     RepoDefinition(
@@ -79,6 +81,7 @@ _REPOS: tuple[RepoDefinition, ...] = (
         category="Games",
         owner="isaacsilver13",
         repo="nba_teammates_chain",
+        private=True,
     ),
 )
 
