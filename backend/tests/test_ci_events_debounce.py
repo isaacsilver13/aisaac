@@ -33,6 +33,7 @@ def _post_ci_report(
 
 def _setup(monkeypatch, tmp_path, debounce_minutes=10.0):
     monkeypatch.setattr(main.settings, "internal_report_secret", "test-secret")
+    monkeypatch.setattr(main.settings, "dashboard_read_token", "read-token")
     monkeypatch.setattr(main.settings, "coms_debounce_minutes", debounce_minutes)
     ci_events.configure(str(tmp_path / "ci_events.db"))
     main._last_notified_at.clear()
@@ -51,7 +52,9 @@ def test_successful_ci_report_is_recorded_without_notification(monkeypatch, tmp_
     assert response.status_code == 204
     assert calls == []
 
-    history = asyncio.run(_request("GET", "/api/v1/coms")).json()
+    history = asyncio.run(
+        _request("GET", "/api/v1/coms", headers={"X-Dashboard-Token": "read-token"})
+    ).json()
     assert len(history) == 1
     assert history[0]["notified"] is False
 
@@ -80,7 +83,9 @@ def test_second_event_within_debounce_window_records_but_does_not_notify(
     assert response.status_code == 204
     assert len(calls) == 1
 
-    history = asyncio.run(_request("GET", "/api/v1/coms")).json()
+    history = asyncio.run(
+        _request("GET", "/api/v1/coms", headers={"X-Dashboard-Token": "read-token"})
+    ).json()
     by_id = {row["id"]: row["notified"] for row in history}
     assert sorted(by_id.items()) == [(1, True), (2, False)]
 

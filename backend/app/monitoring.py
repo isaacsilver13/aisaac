@@ -33,12 +33,22 @@ class Monitor:
         self.slow_after_ms = slow_after_ms
         self._cache: tuple[float, list[CheckResult]] | None = None
         self._last_state: dict[str, HealthState] = {}
+        self._refresh_lock = asyncio.Lock()
 
     async def dashboard(
         self, apps: tuple[AppDefinition, ...], force_refresh: bool = False
     ) -> list[CheckResult]:
+        # Serialize refreshes and recheck the cache after waiting: concurrent readers
+        # must not fan out duplicate checks or record duplicate history rows.
+        async with self._refresh_lock:
+            return await self._dashboard(apps, force_refresh)
+
+    async def _dashboard(
+        self, apps: tuple[AppDefinition, ...], force_refresh: bool
+    ) -> list[CheckResult]:
         now = time.monotonic()
-        if not force_refresh and self._cache and now - self._cache[0] < self.cache_ttl_seconds:
+        ttl = 30.0 if force_refresh else self.cache_ttl_seconds
+        if self._cache and now - self._cache[0] < ttl:
             return [result.model_copy(update={"cached": True}) for result in self._cache[1]]
 
         async with httpx.AsyncClient(follow_redirects=True) as client:
@@ -56,7 +66,7 @@ class Monitor:
         previous = self._last_state.get(result.app_id)
         current = result.state
         self._last_state[result.app_id] = current
-        if previous is None or previous == current:
+        if previous == current:
             return
 
         was_failing = previous in ("down", "degraded")
@@ -64,15 +74,17 @@ class Monitor:
         if is_failing and not was_failing:
             if incidents.get_open_incident(result.app_id) is None:
                 incidents.open_incident(result.app_id, failure_type=current)
-        elif was_failing and not is_failing:
+        elif current in ("up", "slow"):
             open_incident = incidents.get_open_incident(result.app_id)
             if open_incident is not None:
                 incidents.resolve_incident(
                     open_incident["id"], notes="Auto-resolved: check recovered."
                 )
 
-        if self.settings is not None:
-            alerts.send_transition_alert(self.settings, result.name, previous, current)
+        if self.settings is not None and (previous is not None or is_failing):
+            alerts.send_transition_alert(
+                self.settings, result.name, previous or "unavailable", current
+            )
 
     async def check_app(self, client: httpx.AsyncClient, app: AppDefinition) -> CheckResult:
         checked_at = datetime.now(timezone.utc)

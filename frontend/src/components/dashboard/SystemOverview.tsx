@@ -1,5 +1,6 @@
 import { CheckCircle, WarningTriangle } from "iconoir-react";
 
+import { isOperational } from "../../health";
 import { centralTimestamp } from "../../time";
 import type { CheckResult, Incident } from "../../types";
 import { Card } from "../primitives/Card";
@@ -21,8 +22,9 @@ export function SystemOverview({ results, openIncidents, loading, lastChecked }:
   const total = results.length;
   const down = results.filter((result) => result.state === "down").length;
   const degraded = results.filter((result) => result.state === "degraded").length;
+  const stale = results.filter((result) => result.state === "stale").length;
   const unavailable = results.filter((result) => result.state === "unavailable").length;
-  const operational = total - down - degraded - unavailable;
+  const operational = results.filter((result) => isOperational(result.state)).length;
 
   return (
     <Card aria-label="System status">
@@ -32,6 +34,8 @@ export function SystemOverview({ results, openIncidents, loading, lastChecked }:
         <span style={legend}><StatusDot tone="success" label="Operational" /> {operational} operational</span>
         <span style={legend}><StatusDot tone="warning" label="Degraded" /> {degraded} degraded</span>
         <span style={legend}><StatusDot tone="error" label="Down" /> {down} down</span>
+        <span style={legend}><StatusDot tone="warning" label="Stale" /> {stale} stale</span>
+        <span style={legend}><StatusDot tone="neutral" label="Unavailable" /> {unavailable} unavailable</span>
       </div>
 
       <div style={{ borderTop: "1px solid var(--line)", marginTop: 16, paddingTop: 14 }}>

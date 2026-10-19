@@ -35,9 +35,16 @@ class GitHubMonitor:
         self.cache_ttl_seconds = cache_ttl_seconds
         self.timeout_seconds = timeout_seconds
         self._cache: tuple[float, list[RepoActivity]] | None = None
+        self._refresh_lock = asyncio.Lock()
 
     async def activity(
         self, repos: tuple[RepoDefinition, ...], force_refresh: bool = False
+    ) -> list[RepoActivity]:
+        async with self._refresh_lock:
+            return await self._activity(repos, force_refresh)
+
+    async def _activity(
+        self, repos: tuple[RepoDefinition, ...], force_refresh: bool
     ) -> list[RepoActivity]:
         now = time.monotonic()
         age = now - self._cache[0] if self._cache else None
@@ -69,7 +76,9 @@ class GitHubMonitor:
             commit_weeks,
             languages,
         ) = await asyncio.gather(
-            github_client.get_latest_run_status(client, self.token, owner, name, timeout),
+            github_client.get_latest_run_status(
+                client, self.token, owner, name, timeout, repo.ci_workflow
+            ),
             github_client.get_open_issue_count(client, self.token, owner, name, timeout),
             github_client.get_pull_requests(client, self.token, owner, name, timeout),
             github_client.get_commit_activity(client, self.token, owner, name, timeout),
@@ -86,6 +95,15 @@ class GitHubMonitor:
         if run_status is not None:
             ci_status = _ci_status(*run_status)
 
+        job_runs = await asyncio.gather(*(
+            github_client.get_latest_run_status(client, self.token, owner, name, timeout, workflow)
+            for workflow in repo.scheduled_workflows
+        ))
+        job_statuses = {
+            workflow: _ci_status(*run) if run is not None else "unknown"
+            for workflow, run in zip(repo.scheduled_workflows, job_runs)
+        }
+
         commits_last_7d = commit_activity[0] if commit_activity is not None else None
         last_commit_at = commit_activity[1] if commit_activity is not None else None
 
@@ -100,6 +118,7 @@ class GitHubMonitor:
             owner=repo.owner,
             repo=repo.repo,
             ci_status=ci_status,
+            job_statuses=job_statuses,
             open_issue_count=issue_count,
             open_pr_count=None if open_pull_requests is None else len(open_pull_requests),
             open_pull_requests=[PullRequestSummary(**pr) for pr in (open_pull_requests or [])],

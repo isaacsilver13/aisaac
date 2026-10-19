@@ -29,7 +29,7 @@ Backend settings come from environment variables (`backend/app/config.py`). Secr
 
 | Variable | Enables |
 |---|---|
-| `DASHBOARD_READ_TOKEN` | Knowledge, financials, deployments, logs, automations, config status (sent as `X-Dashboard-Token`). |
+| `DASHBOARD_READ_TOKEN` | Forced health/GitHub refreshes, communications history, knowledge, financials, deployments, logs, automations, config status (sent as `X-Dashboard-Token`). |
 | `DASHBOARD_WRITE_TOKEN` | Resolving incidents (sent as `X-Dashboard-Write-Token`; keep distinct from the read token). Incident listing needs the read token. |
 | `INTERNAL_REPORT_SECRET` | Push jobs and heartbeats (`/internal/*`). |
 | `FLY_API_TOKEN` | Deployments and Logs tabs. Read-only org token: `fly tokens create readonly personal`. |

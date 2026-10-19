@@ -17,12 +17,13 @@ def _headers(token: str) -> dict[str, str]:
 
 
 async def get_latest_run_status(
-    client: httpx.AsyncClient, token: str, owner: str, repo: str, timeout: float
+    client: httpx.AsyncClient, token: str, owner: str, repo: str, timeout: float,
+    workflow: str = "ci.yml",
 ) -> Optional[tuple[str, Optional[str]]]:
-    """Returns (status, conclusion) for the most recent workflow run, or None on failure."""
+    """Returns (status, conclusion) for a named workflow, or None on failure."""
     try:
         response = await client.get(
-            f"{GITHUB_API_BASE}/repos/{owner}/{repo}/actions/runs",
+            f"{GITHUB_API_BASE}/repos/{owner}/{repo}/actions/workflows/{workflow}/runs",
             params={"per_page": 1},
             headers=_headers(token),
             timeout=timeout,

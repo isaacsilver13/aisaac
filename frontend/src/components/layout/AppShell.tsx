@@ -2,6 +2,8 @@ import { AnimatePresence, motion } from "motion/react";
 import { useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 
+import { isOperational } from "../../health";
+import type { HealthState } from "../../types";
 import { fetchDashboard } from "../../api";
 import { useAsyncData } from "../../hooks/useAsyncData";
 import type { Tone } from "../primitives/tone";
@@ -17,18 +19,17 @@ interface AppShellProps {
 function summarizeSystemStatus(
   loading: boolean,
   error: string | null,
-  results: { state: string }[] | undefined,
+  results: { state: HealthState }[] | undefined,
 ): { label: string; tone: Tone } {
   if (error) return { label: "Unable to reach services", tone: "error" };
   if (loading || !results) return { label: "Checking systems…", tone: "neutral" };
 
   const total = results.length;
   const down = results.filter((result) => result.state === "down").length;
-  const degraded = results.filter((result) => result.state === "degraded").length;
-  const operational = total - down - degraded;
+  const operational = results.filter((result) => isOperational(result.state)).length;
 
   if (down > 0) return { label: `${operational}/${total} operational`, tone: "error" };
-  if (degraded > 0) return { label: `${operational}/${total} operational`, tone: "warning" };
+  if (operational < total) return { label: `${operational}/${total} operational`, tone: "warning" };
   return { label: total > 0 ? `${operational}/${total} operational` : "No systems configured", tone: "success" };
 }
 

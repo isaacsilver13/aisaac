@@ -16,10 +16,10 @@ export async function fetchFinancials(token: string): Promise<FinancialSnapshot>
   return (await response.json()) as FinancialSnapshot;
 }
 
-export async function fetchDashboard(forceRefresh = false): Promise<DashboardResponse> {
-  const query = forceRefresh ? "?force_refresh=true" : "";
+export async function fetchDashboard(forceRefresh = false, token = readToken()): Promise<DashboardResponse> {
+  const query = forceRefresh && token ? "?force_refresh=true" : "";
   const response = await fetch(`/api/v1/dashboard${query}`, {
-    headers: { Accept: "application/json" },
+    headers: token ? { Accept: "application/json", "X-Dashboard-Token": token } : { Accept: "application/json" },
   });
   if (!response.ok) {
     throw new Error(`Dashboard request failed with HTTP ${response.status}.`);
@@ -61,7 +61,7 @@ export async function fetchAgents(): Promise<AgentSummary[]> {
 }
 
 export async function fetchAnalytics(forceRefresh = false, token = readToken()): Promise<RepoActivity[]> {
-  const query = forceRefresh ? "?force_refresh=true" : "";
+  const query = forceRefresh && token ? "?force_refresh=true" : "";
   // The read token is optional here: with it, private repos are included.
   const response = await fetch(`/api/v1/analytics${query}`, {
     headers: token ? { Accept: "application/json", "X-Dashboard-Token": token } : { Accept: "application/json" },
@@ -72,10 +72,10 @@ export async function fetchAnalytics(forceRefresh = false, token = readToken()):
   return (await response.json()) as RepoActivity[];
 }
 
-export async function fetchComsEvents(appId?: string): Promise<CIEvent[]> {
+export async function fetchComsEvents(appId?: string, token = readToken()): Promise<CIEvent[]> {
   const query = appId ? `?app_id=${encodeURIComponent(appId)}` : "";
   const response = await fetch(`/api/v1/coms${query}`, {
-    headers: { Accept: "application/json" },
+    headers: { Accept: "application/json", "X-Dashboard-Token": token },
   });
   if (!response.ok) {
     throw new Error(`Coms request failed with HTTP ${response.status}.`);

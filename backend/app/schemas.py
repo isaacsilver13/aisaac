@@ -129,6 +129,9 @@ CiStatus = Literal["success", "failure", "in_progress", "unknown"]
 class RepoDefinition(BaseModel):
     model_config = ConfigDict(frozen=True)
 
+    ci_workflow: str = "ci.yml"
+    scheduled_workflows: tuple[str, ...] = ()
+
     id: str = Field(pattern=r"^[a-z0-9-]+$")
     name: str
     category: str
@@ -169,6 +172,7 @@ class RepoActivity(BaseModel):
     owner: str
     repo: str
     ci_status: CiStatus = "unknown"
+    job_statuses: dict[str, CiStatus] = {}
     open_issue_count: Optional[int] = None
     open_pr_count: Optional[int] = None
     open_pull_requests: list[PullRequestSummary] = Field(default_factory=list)

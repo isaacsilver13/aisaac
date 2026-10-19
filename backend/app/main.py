@@ -124,7 +124,12 @@ def health() -> dict[str, str]:
 
 
 @app.get("/api/v1/dashboard", response_model=DashboardResponse)
-async def dashboard(force_refresh: bool = Query(default=False)) -> DashboardResponse:
+async def dashboard(
+    force_refresh: bool = Query(default=False),
+    x_dashboard_token: Optional[str] = Header(default=None),
+) -> DashboardResponse:
+    if force_refresh:
+        _require_read_token(x_dashboard_token)
     apps = get_registry(settings.profile)
     results = await monitor.dashboard(apps, force_refresh=force_refresh)
     return DashboardResponse(
@@ -356,6 +361,8 @@ async def analytics(
     force_refresh: bool = Query(default=False),
     x_dashboard_token: Optional[str] = Header(default=None),
 ) -> list[RepoActivity]:
+    if force_refresh:
+        _require_read_token(x_dashboard_token)
     activity = await github_monitor.activity(get_repos(), force_refresh=force_refresh)
     # Private repos (titles, PRs, languages) are only shown to holders of the read token.
     if settings.dashboard_read_token and _secrets_match(
@@ -388,7 +395,10 @@ def internal_ci_report(payload: CIReportIn) -> None:
         _last_notified_at[payload.app_id] = now
 
 
-@app.get("/api/v1/coms", response_model=list[CIEventOut])
+@app.get(
+    "/api/v1/coms", response_model=list[CIEventOut],
+    dependencies=[Depends(_require_read_token)],
+)
 def list_coms_events(app_id: Optional[str] = Query(default=None)) -> list[CIEventOut]:
     return [
         CIEventOut(**{**dict(row), "notified": bool(row["notified"])})
@@ -706,7 +716,6 @@ if frontend_dist.is_dir():
 
     @app.get("/{path:path}", include_in_schema=False)
     async def frontend(path: str) -> FileResponse:
-        requested = frontend_dist / path
-        if path and requested.is_file() and frontend_dist in requested.parents:
-            return FileResponse(requested)
-        return FileResponse(frontend_dist / "index.html")
+        from .frontend_files import frontend_response
+
+        return frontend_response(frontend_dist, path)

@@ -15,6 +15,9 @@ _REPOS: tuple[RepoDefinition, ...] = (
         category="Collection",
         owner="isaacsilver13",
         repo="vinyl",
+        private=True,
+        scheduled_workflows=("app-daily-refresh.yml",),
+        ci_workflow="api-ci.yml",
     ),
     RepoDefinition(
         id="nfl-confidence",
@@ -22,6 +25,7 @@ _REPOS: tuple[RepoDefinition, ...] = (
         category="Sports",
         owner="isaacsilver13",
         repo="NFL_Confidence",
+        scheduled_workflows=("scheduled-tick.yml",),
     ),
     RepoDefinition(
         id="betting-aggregator",
@@ -29,6 +33,7 @@ _REPOS: tuple[RepoDefinition, ...] = (
         category="Sports",
         owner="isaacsilver13",
         repo="betting_aggregator",
+        ci_workflow="ci-deploy.yml",
     ),
     RepoDefinition(
         id="nba-prediction",
@@ -36,6 +41,7 @@ _REPOS: tuple[RepoDefinition, ...] = (
         category="Research",
         owner="isaacsilver13",
         repo="nba_prediction",
+        scheduled_workflows=("odds-collector.yml",),
     ),
     RepoDefinition(
         id="gym-tracker",
@@ -43,6 +49,7 @@ _REPOS: tuple[RepoDefinition, ...] = (
         category="Health",
         owner="isaacsilver13",
         repo="gym_tracker",
+        ci_workflow="ci-deploy.yml",
     ),
     RepoDefinition(
         id="portfolio-analysis",
@@ -50,6 +57,8 @@ _REPOS: tuple[RepoDefinition, ...] = (
         category="Finance",
         owner="isaacsilver13",
         repo="portfolio_analysis",
+        private=True,
+        scheduled_workflows=("refresh-prices.yml",),
     ),
     RepoDefinition(
         id="aisaac-dashboard",
@@ -57,6 +66,7 @@ _REPOS: tuple[RepoDefinition, ...] = (
         category="Ops",
         owner="isaacsilver13",
         repo="aisaac_dashboard",
+        ci_workflow="ci-deploy.yml",
     ),
     RepoDefinition(
         id="chess",
@@ -71,6 +81,7 @@ _REPOS: tuple[RepoDefinition, ...] = (
         category="Games",
         owner="isaacsilver13",
         repo="nba_teammates_chain",
+        private=True,
     ),
 )
 
