@@ -458,3 +458,60 @@ export interface LearningModule {
   exercises: LearningExercise[];
   completed_at: string | null;
 }
+
+export type BriefState = "ok" | "not_connected" | "fetch_failed" | "stale";
+
+export interface CalendarEvent {
+  title: string;
+  all_day: boolean;
+  start: string;
+  end: string | null;
+  location: string | null;
+}
+
+export interface ProjectWorktree {
+  folder: string;
+  branch: string | null;
+  last_commit_at: string | null;
+  last_commit_subject: string;
+  dirty_files: number;
+  ahead: number | null;
+}
+
+export interface ProjectBrief {
+  folder: string;
+  slug: string | null;
+  last_activity_at: string | null;
+  note: { branch: string; updated_at: string; text: string } | null;
+  other_notes: number;
+  worktrees: ProjectWorktree[];
+  ci_status: "success" | "failure" | "in_progress" | "unknown";
+  open_prs: { number: number; title: string; url: string; opened_at: string }[];
+  reasons: string[];
+}
+
+export interface GymSet {
+  weight_lb: number;
+  reps: number;
+  date?: string;
+}
+
+export interface GymSummary {
+  routine: { id: number; name: string } | null;
+  next_gym_day: { id: number; name: string } | null;
+  last_session_date: string | null;
+  exercises: { name: string; latest: GymSet | null; best: GymSet | null }[];
+}
+
+export interface AssistantBrief {
+  generated_at: string;
+  calendar: { state: BriefState; events: CalendarEvent[] };
+  projects: { state: BriefState; reported_at: string | null; projects: ProjectBrief[] };
+  games: {
+    configured: boolean;
+    priority: SportsEvent[];
+    top_25: SportsEvent[];
+    slate: Record<"NFL" | "NBA", SportsEvent[]>;
+  };
+  gym: { state: BriefState; app_url: string | null; data: GymSummary | null };
+}

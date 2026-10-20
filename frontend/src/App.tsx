@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router-dom";
 
 import { AppShell } from "./components/layout/AppShell";
 import Applications from "./pages/Applications";
+import Assistant from "./pages/Assistant";
 import Automations from "./pages/Automations";
 import Agents from "./pages/Agents";
 import Analytics from "./pages/Analytics";
@@ -23,6 +24,7 @@ export default function App() {
     <AppShell>
       <Routes>
         <Route path="/" element={<CommandCenter />} />
+        <Route path="/assistant" element={<Assistant />} />
         <Route path="/applications" element={<Applications />} />
         <Route path="/applications/:appId/:tab" element={<ApplicationPage />} />
         <Route path="/github" element={<Analytics />} />

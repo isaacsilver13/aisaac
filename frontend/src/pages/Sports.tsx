@@ -51,7 +51,7 @@ export default function Sports() {
     <>
       <PageHeader
         title="Sports"
-        description="Bears, Bulls and White Sox first, then league and college schedules. Rankings are shown only from a current poll."
+        description="Bears, Bulls, White Sox, Northwestern and Temple first, then league and college schedules. Rankings are shown only from a current poll."
         lastUpdated={data?.freshness_at ? centralTimestamp(data.freshness_at) : undefined}
         actions={
           <button className="refresh-button" type="button" onClick={() => void reload(true)} disabled={refreshing || !token}>
