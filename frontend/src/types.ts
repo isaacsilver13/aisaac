@@ -365,7 +365,7 @@ export interface SportsEvent {
 export interface SportsResponse {
   events: SportsEvent[];
   priority: SportsEvent[];
-  priority_teams: Record<string, League>;
+  priority_teams: Record<string, League[]>;
   official_links: Record<League, string>;
   rankings: { poll_date: string | null; current: boolean };
   configured: boolean;

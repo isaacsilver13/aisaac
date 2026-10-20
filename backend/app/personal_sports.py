@@ -1,8 +1,8 @@
 """Private sports schedule/results behind a provider boundary.
 
-No live provider is approved yet (see docs/personal-feeds-providers.md), so `PROVIDER` is None
-and the page shows official scoreboard links. A provider is a callable returning raw event
-dicts; `normalize` is the only place that shape is interpreted. Rankings are never inferred.
+The provider is ESPN's public scoreboard JSON (`personal_espn`, approved 2026-10-19; see
+docs/personal-feeds-providers.md). A provider is a callable returning raw event dicts; `normalize`
+is the only place that shape is interpreted. Rankings are never inferred.
 """
 
 from __future__ import annotations
@@ -10,13 +10,21 @@ from __future__ import annotations
 import logging
 from datetime import date, datetime, timedelta, timezone
 from typing import Callable, Optional
+from zoneinfo import ZoneInfo
 
-from . import personal_store
+from . import personal_espn, personal_store
 
 logger = logging.getLogger("aisaac.personal")
 
 LEAGUES = ("NFL", "NBA", "MLB", "NCAAF", "NCAAB")
-PRIORITY_TEAMS = {"Chicago Bears": "NFL", "Chicago Bulls": "NBA", "Chicago White Sox": "MLB"}
+# Full ESPN display names: `list_events` matches teams by exact (case-insensitive) name.
+PRIORITY_TEAMS = {
+    "Chicago Bears": ["NFL"],
+    "Chicago Bulls": ["NBA"],
+    "Chicago White Sox": ["MLB"],
+    "Northwestern Wildcats": ["NCAAF", "NCAAB"],
+    "Temple Owls": ["NCAAF", "NCAAB"],
+}
 OFFICIAL_LINKS = {
     "NFL": "https://www.nfl.com/scores/",
     "NBA": "https://www.nba.com/games",
@@ -25,10 +33,13 @@ OFFICIAL_LINKS = {
     "NCAAB": "https://www.ncaa.com/scoreboard/basketball-men/d1",
 }
 POLL_MAX_AGE = timedelta(days=8)
+REMINDER_LEAD = timedelta(minutes=60)
+REFRESH_EVERY = timedelta(minutes=60)
+TZ = ZoneInfo("America/Chicago")
 STATUSES = ("scheduled", "live", "final", "postponed")
 
 Provider = Callable[[], list[dict]]
-PROVIDER: Optional[Provider] = None  # ponytail: wire a documented provider here once approved
+PROVIDER: Optional[Provider] = personal_espn.fetch
 
 
 def _int(value) -> Optional[int]:
@@ -120,3 +131,39 @@ def priority_events(now: datetime, days: int = 2) -> list[dict]:
     for team in PRIORITY_TEAMS:
         out += personal_store.list_events(team=team, date_from=lo, date_to=hi)
     return sorted(out, key=lambda e: e["start_at"])
+
+
+def reminder_text(e: dict) -> str:
+    local = datetime.fromisoformat(e["start_at"]).astimezone(TZ)
+    when = local.strftime("%I:%M %p").lstrip("0")
+    return f"{e['away']} @ {e['home']} · {when} CT ({e['league']}) {e['url'] or ''}".strip()
+
+
+def send_reminders(
+    now: datetime, *, send: Callable[[str], bool], dry_run: bool = False,
+    refresh_fn: Callable[[], str] = refresh,
+) -> dict:
+    """Push each priority-team game once, within REMINDER_LEAD of its start.
+
+    Called every ~15 min. A game is marked reminded only after `send` succeeds, so a failed push
+    retries on the next call. The feed is refreshed at most every REFRESH_EVERY.
+    """
+    last = next(
+        (r for r in personal_store.sports_refreshes() if r["provider"] == "sports"), {}
+    ).get("last_attempt_at")
+    if not dry_run and (not last or now - datetime.fromisoformat(last) >= REFRESH_EVERY):
+        refresh_fn()
+    due = [
+        e for e in priority_events(now, days=1)
+        if e["status"] == "scheduled"
+        and now < datetime.fromisoformat(e["start_at"]) <= now + REMINDER_LEAD
+        and not personal_store.reminded(e["id"])
+    ]
+    if dry_run:
+        return {"status": "dry_run", "due": [reminder_text(e) for e in due]}
+    sent = []
+    for e in due:
+        if send(reminder_text(e)):
+            personal_store.mark_reminded(e["id"])
+            sent.append(e["id"])
+    return {"status": "ok", "due": len(due), "sent": len(sent)}

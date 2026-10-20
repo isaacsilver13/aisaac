@@ -119,6 +119,11 @@ CREATE TABLE IF NOT EXISTS own_items (
 );
 CREATE INDEX IF NOT EXISTS idx_own_kind ON own_items (kind, occurred_at DESC);
 
+CREATE TABLE IF NOT EXISTS reminders_sent (
+    event_id TEXT PRIMARY KEY,
+    sent_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS digest_runs (
     local_date TEXT PRIMARY KEY,
     status TEXT NOT NULL,
@@ -446,6 +451,21 @@ def list_own_items(kind: Optional[str] = None, limit: int = 200) -> list[dict]:
             (*params, limit),
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+def reminded(event_id: str) -> bool:
+    with _connect() as conn:
+        return conn.execute(
+            "SELECT 1 FROM reminders_sent WHERE event_id = ?", (event_id,)
+        ).fetchone() is not None
+
+
+def mark_reminded(event_id: str) -> None:
+    with _connect() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO reminders_sent (event_id, sent_at) VALUES (?, ?)",
+            (event_id, _now()),
+        )
 
 
 def get_run(local_date: str) -> Optional[dict]:

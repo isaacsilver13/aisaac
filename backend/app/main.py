@@ -615,6 +615,15 @@ def daily_digest_send(dry_run: bool = Query(default=False)) -> dict:
     )
 
 
+@app.post("/internal/game-reminders/send", dependencies=[Depends(_require_internal_secret)])
+def game_reminders_send(dry_run: bool = Query(default=False)) -> dict:
+    return personal_sports.send_reminders(
+        datetime.now(timezone.utc),
+        dry_run=dry_run,
+        send=lambda message: notify.send_coms_notification(settings, message),
+    )
+
+
 # (setting, label, what it enables). Values are never returned, only whether each is set.
 _CONFIG_CHECKS = (
     ("dashboard_read_token", "Dashboard read token", "Knowledge, financials, deployments, logs"),
