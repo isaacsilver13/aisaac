@@ -72,6 +72,12 @@ class Settings(BaseSettings):
     stockx_client_secret: str = ""
     stockx_api_key: str = ""
 
+    # Assistant brief: Google Calendar secret iCal address (read-only) and gym_tracker's
+    # token-guarded /api/v1/assistant/summary. Unset = that brief section says "not connected".
+    google_calendar_ics_url: str = ""
+    gym_tracker_url: str = ""
+    gym_tracker_token: str = ""
+
     # Second-brain vault notes pushed by scripts/second_brain_push.py (read-token gated).
     second_brain_db_path: str = "./aisaac_second_brain.db"
 

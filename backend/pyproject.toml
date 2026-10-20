@@ -7,7 +7,9 @@ dependencies = [
     "cryptography>=43,<50",  # Fernet for stored OAuth refresh tokens
     "fastapi>=0.115,<1.0",
     "httpx>=0.27,<1.0",
+    "icalendar>=6,<7",  # parse the Google Calendar secret iCal feed
     "pydantic-settings>=2.6,<3.0",
+    "recurring-ical-events>=3,<4",  # expand RRULE/EXDATE for "today"
     "tzdata>=2024.1",  # zoneinfo data for America/Chicago on Windows/slim images
     "uvicorn[standard]>=0.34,<1.0",
 ]

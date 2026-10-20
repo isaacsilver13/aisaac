@@ -635,11 +635,14 @@ _CONFIG_CHECKS = (
     ("github_token", "GitHub token", "Repo, PR and CI data (rate limits without it)"),
     ("resend_api_key", "Resend API key", "Email alerts"),
     ("alert_to_email", "Alert recipient", "Email alerts"),
-    ("ntfy_topic", "ntfy topic", "CI push notifications"),
+    ("ntfy_topic", "ntfy topic", "CI, game-reminder and morning-brief pushes"),
     ("token_encryption_key", "Token encryption key", "Connecting eBay/StockX accounts"),
     ("ebay_client_id", "eBay client ID", "Shoe price search"),
     ("ebay_client_secret", "eBay client secret", "Shoe price search"),
     ("portfolio_metrics_token", "Portfolio metrics token", "Portfolio app metrics"),
+    ("google_calendar_ics_url", "Google Calendar iCal URL", "Assistant: today's events"),
+    ("gym_tracker_url", "Gym Tracker URL", "Assistant: gym progress"),
+    ("gym_tracker_token", "Gym Tracker token", "Assistant: gym progress"),
 )
 
 
