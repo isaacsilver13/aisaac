@@ -16,6 +16,7 @@ The monitor checks configured public endpoints server-side. It does not access a
 | `/` | Overview: system status, attention items, activity, financials, second-brain summary. |
 | `/applications/:id/{overview,stack,health,deployments,data,logs}` | Per-app tabs. Stack maps the observed request, deployment, data/provider, and monitoring flow; Health has uptime, latency and state history; Deployments and Logs read Fly; Data shows reported metrics and their history. |
 | `/github`, `/github/repositories[/:repo]` | Repo activity, repository list and per-repo detail. |
+| `/assistant` | Personal brief (token-gated): today's calendar, priority-team games, projects that need attention with where you left off, gym progress. |
 | `/tasks` | Open pull requests and unresolved incidents. |
 | `/automations` | Last run and staleness of push jobs and background tasks (observed, not scheduled). |
 | `/knowledge[/*]` | Second-brain vault as a Wikipedia-style viewer (token-gated): wiki portals, articles with infobox, contents, hover previews, backlinks and a local graph; `/knowledge/<note path>`, `/knowledge/<wiki>` (portal), `/knowledge/graph`, `/knowledge/all`. |
@@ -35,7 +36,9 @@ Backend settings come from environment variables (`backend/app/config.py`). Secr
 | `FLY_API_TOKEN` | Deployments and Logs tabs. Read-only org token: `fly tokens create readonly personal`. |
 | `GITHUB_TOKEN` | Repo, PR and CI data. |
 | `RESEND_API_KEY`, `ALERT_TO_EMAIL` | Email alerts. |
-| `NTFY_TOPIC` | CI push notifications. |
+| `NTFY_TOPIC` | CI pushes, pre-game reminders and the morning brief push. |
+| `GOOGLE_CALENDAR_ICS_URL` | Assistant: today's events (Google Calendar → Integrate calendar → secret iCal address). |
+| `GYM_TRACKER_URL`, `GYM_TRACKER_TOKEN` | Assistant: gym progress from gym_tracker's `/api/v1/assistant/summary`. |
 | `HEALTH_POLL_INTERVAL_SECONDS` | Optional in-process poller (default 0 = off). |
 
 To report Codex included usage, schedule `python scripts/push_codex_usage.py` every two hours on

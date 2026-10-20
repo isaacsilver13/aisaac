@@ -63,3 +63,14 @@ Syncs the Obsidian vault (`wikis/`, `knowledge/`, `projects/`, `questions/`) to 
     python scripts/second_brain_push.py [--dry-run]
 
 Reads need the same dashboard token as the financials panel.
+
+## push_project_status.py
+
+Feeds the Assistant page's Projects card. For every git repo under `WORKSPACE_REPOS_PATH` (default
+`~/nba_prediction/repos`) and each of its worktrees it sends the folder name, branch, last commit
+date and subject, uncommitted file count and commits not on `origin/<default>`, plus the newest
+left-off notes from `~/.claude/left-off/<repo folder>/*.md`. Full paths and file contents never
+leave the machine. It runs `git fetch` first (no prompts, 20 s cap per repo; `--no-fetch` skips it).
+Schedule it hourly (Windows Task Scheduler); the Automations page flags it stale after 2 hours.
+
+    python scripts/push_project_status.py [--dry-run] [--no-fetch]
