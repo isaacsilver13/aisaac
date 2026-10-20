@@ -90,6 +90,10 @@ def _link(label: str, url: str, size: int = 15) -> str:
     )
 
 
+def _text(text: str) -> str:
+    return f'<div class="d-ink" style="color:{INK};font-size:15px">{_e(text)}</div>'
+
+
 def _meta(text: str) -> str:
     style = f"color:{MUTED};font-size:13px;margin-top:4px"
     return f'<div class="d-muted" style="{style}">{_e(text)}</div>'
@@ -118,9 +122,33 @@ def _item_meta(item: dict, now: datetime) -> str:
     return " · ".join(x for x in (item["source"], _age(item.get("published_at"), now)) if x)
 
 
+def _brief_sections(brief: Optional[dict]) -> list[tuple[str, list[tuple[str, str]]]]:
+    """(title, [(label, url)]) for the assistant brief's calendar, projects and gym."""
+    if not brief:
+        return []
+    out = []
+    events = brief["calendar"]["events"]
+    out.append(("Today", [
+        (e["title"] if e["all_day"] else
+         f"{datetime.fromisoformat(e['start']).strftime('%I:%M %p').lstrip('0')} {e['title']}", "")
+        for e in events
+    ]))
+    out.append(("Projects that need you", [
+        (f"{p['folder']}: {'; '.join(p['reasons'])}"
+         + (f" (left off: {p['note']['text'].splitlines()[0]})" if p["note"] else ""), "")
+        for p in brief["projects"]["projects"] if p["reasons"]
+    ]))
+    gym = brief["gym"]
+    day = ((gym.get("data") or {}).get("next_gym_day") or {}).get("name")
+    if gym.get("app_url"):
+        out.append(("Gym", [(f"Next: {day}" if day else "Log today's workout", gym["app_url"])]))
+    return out
+
+
 def render(
     items: list[dict], freshness: Optional[str], now: datetime,
     games: Optional[list[dict]] = None, shoes: Optional[list[dict]] = None,
+    brief: Optional[dict] = None,
 ) -> tuple[str, str, str]:
     """Return (subject, plaintext, html). Pure: no I/O.
 
@@ -143,8 +171,15 @@ def render(
 
     def section(title: str, text_rows: list[tuple[str, str]], card: str) -> None:
         if text_rows:
-            lines.extend(["", title] + [f"- {label}\n  {url}" for label, url in text_rows])
+            lines.extend(["", title] + [
+                f"- {label}" + (f"\n  {url}" if url else "") for label, url in text_rows
+            ])
             cards.append(card)
+
+    for title, rows in _brief_sections(brief):
+        section(title, rows, _list_card(title, [
+            _link(label, url) if url else _text(label) for label, url in rows
+        ]))
 
     if lead:
         section(
@@ -238,6 +273,8 @@ def run(
     dry_run: bool = False,
     send: Callable[[str, str, str], bool],
     refresh: Callable[[], None] = personal_news.refresh,
+    brief: Optional[dict] = None,
+    push: Optional[Callable[[], bool]] = None,
 ) -> dict:
     """Refresh, render and (unless dry_run) send once for today's Chicago date."""
     now = now or datetime.now(timezone.utc)
@@ -245,7 +282,7 @@ def run(
     if dry_run:
         subject, text, _ = render(
             pick_items(), personal_store.freshness_at(), now,
-            pick_games(now), personal_shoes.recent_changes(now),
+            pick_games(now), personal_shoes.recent_changes(now), brief=brief,
         )
         return {"status": "dry_run", "local_date": key, "subject": subject, "text": text}
     if now.astimezone(TZ).hour < SEND_HOUR:
@@ -259,9 +296,12 @@ def run(
         personal_shoes.refresh()
         freshness = personal_store.freshness_at()
         subject, text, body = render(
-            pick_items(), freshness, now, pick_games(now), personal_shoes.recent_changes(now)
+            pick_items(), freshness, now, pick_games(now), personal_shoes.recent_changes(now),
+            brief=brief,
         )
         ok = send(subject, text, body)
+        if push:
+            push()  # phone summary; independent of whether the email went out
     except Exception:  # release the slot so a retry can run; never leak details
         personal_store.finish_run(key, "failed", error="send_error")
         raise

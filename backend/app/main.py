@@ -23,6 +23,7 @@ from . import (
     learning,
     metrics_store,
     notify,
+    personal_assistant,
     personal_connect,
     personal_digest,
     personal_ebay,
@@ -609,11 +610,42 @@ def personal_disconnect(provider: str) -> None:
         raise HTTPException(404, "Not connected.")
 
 
+async def _repo_activity() -> list[RepoActivity]:
+    """GitHub activity for the brief; a GitHub outage must not block the brief or digest."""
+    try:
+        return await github_monitor.activity(get_repos())
+    except Exception:
+        logging.getLogger("aisaac.personal").warning("GitHub activity unavailable for brief")
+        return []
+
+
+async def _brief() -> dict:
+    return await personal_assistant.build(
+        datetime.now(timezone.utc),
+        activity=_repo_activity,
+        calendar_url=settings.google_calendar_ics_url,
+        gym_url=settings.gym_tracker_url,
+        gym_token=settings.gym_tracker_token,
+    )
+
+
+@app.get("/api/v1/personal/assistant", dependencies=[Depends(_require_read_token)])
+async def personal_assistant_brief() -> dict:
+    return await _brief()
+
+
 @app.post("/internal/daily-digest/send", dependencies=[Depends(_require_internal_secret)])
-def daily_digest_send(dry_run: bool = Query(default=False)) -> dict:
-    return personal_digest.run(
+async def daily_digest_send(dry_run: bool = Query(default=False)) -> dict:
+    brief = await _brief()
+    page = f"{settings.public_base_url.rstrip('/')}/assistant"
+    return await asyncio.to_thread(
+        personal_digest.run,
         dry_run=dry_run,
         send=lambda subject, text, html: send_email(settings, subject, text, html),
+        brief=brief,
+        push=lambda: notify.send_coms_notification(
+            settings, personal_assistant.push_line(brief, page)
+        ),
     )
 
 

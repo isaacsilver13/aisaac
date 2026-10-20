@@ -205,3 +205,25 @@ def test_utf16_doctype_rejected():
     doc = '<!DOCTYPE x [<!ENTITY a "b">]><rss version="2.0"/>'.encode("utf-16")
     with pytest.raises(ValueError):
         personal_news.parse_feed(doc)
+
+
+def test_digest_pushes_once_even_when_email_skipped():
+    pushed, sent = [], []
+    brief = {
+        "calendar": {"state": "ok", "events": [
+            {"title": "Dentist", "all_day": False, "start": "2026-10-07T15:00:00-05:00"}]},
+        "projects": {"projects": [{"folder": "gym_tracker", "reasons": ["latest CI run failed"],
+                                   "note": {"text": "Doing: summary endpoint\nNext: tests"}}]},
+        "gym": {"app_url": "https://gym.example", "data": None},
+    }
+
+    def send(subject, text, html):
+        sent.append(text)
+        return False  # e.g. Resend not configured
+
+    out = personal_digest.run(NOW, send=send, refresh=lambda: None, brief=brief,
+                              push=lambda: pushed.append(1) or True)
+    assert out["status"] == "skipped" and pushed == [1]
+    assert "3:00 PM Dentist" in sent[0]
+    assert "gym_tracker: latest CI run failed (left off: Doing: summary endpoint)" in sent[0]
+    assert "Log today's workout\n  https://gym.example" in sent[0]
