@@ -1,4 +1,4 @@
-import type { NewShoeWatch, OwnResponse, NewsResponse, ShoesResponse, SportsResponse, NewsState, AutomationStatus, AutomationRun, ConfigItem, AppInfo, AppLogs, Deployments, HealthHistory, HistoryRange, LearningModule, AgentSummary, CIEvent, DashboardResponse, FinancialSnapshot, Incident, Note, NoteListItem, Portal, RepoActivity, SecondBrainSummary, VaultGraph } from "./types";
+import type { AssistantBrief, NewShoeWatch, OwnResponse, NewsResponse, ShoesResponse, SportsResponse, NewsState, AutomationStatus, AutomationRun, ConfigItem, AppInfo, AppLogs, Deployments, HealthHistory, HistoryRange, LearningModule, AgentSummary, CIEvent, DashboardResponse, FinancialSnapshot, Incident, Note, NoteListItem, Portal, RepoActivity, SecondBrainSummary, VaultGraph } from "./types";
 import { readToken, readWriteToken } from "./token";
 
 export class FinancialsAuthError extends Error {}
@@ -250,6 +250,8 @@ async function fetchRefreshed<T>(path: string, token: string, forceRefresh: bool
 }
 
 export const fetchSports = (token: string, forceRefresh = false) => fetchRefreshed<SportsResponse>("sports", token, forceRefresh);
+
+export const fetchAssistant = (token: string) => getPersonal<AssistantBrief>("assistant", token);
 
 export const fetchShoes = (token: string, forceRefresh = false) => fetchRefreshed<ShoesResponse>("shoes", token, forceRefresh);
 

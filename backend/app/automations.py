@@ -18,6 +18,7 @@ _PUSH_JOBS = (
     ("codex-usage", "Codex usage push", "codex", 2.0),
     ("neon-usage", "Neon usage push", "neon", 26.0),
     ("fly-costs", "Fly cost push", "fly", 26.0),
+    ("project-status", "Project status push", "projects", 2.0),
 )
 _RUN_SOURCES = {id_: source for id_, _, source, _ in _PUSH_JOBS} | {"second-brain": "second-brain"}
 

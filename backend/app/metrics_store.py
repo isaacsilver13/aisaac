@@ -1,4 +1,5 @@
-"""Latest pushed snapshot per financial/usage source (claude, neon, fly).
+"""Latest pushed snapshot per source: financial/usage (claude, codex, neon, fly) and the local
+project-status push (projects).
 
 Same SQLite-on-a-Fly-volume pattern as incidents.py. Only the most recent
 payload per source is kept: these are point-in-time figures pushed by

@@ -365,7 +365,7 @@ export interface SportsEvent {
 export interface SportsResponse {
   events: SportsEvent[];
   priority: SportsEvent[];
-  priority_teams: Record<string, League>;
+  priority_teams: Record<string, League[]>;
   official_links: Record<League, string>;
   rankings: { poll_date: string | null; current: boolean };
   configured: boolean;
@@ -457,4 +457,71 @@ export interface LearningModule {
   questions: LearningQuestion[];
   exercises: LearningExercise[];
   completed_at: string | null;
+}
+
+export type BriefState = "ok" | "not_connected" | "fetch_failed" | "stale";
+
+export interface CalendarEvent {
+  title: string;
+  all_day: boolean;
+  start: string;
+  end: string | null;
+  location: string | null;
+}
+
+export interface ProjectWorktree {
+  folder: string;
+  branch: string | null;
+  last_commit_at: string | null;
+  last_commit_subject: string;
+  dirty_files: number;
+  ahead: number | null;
+}
+
+export interface ProjectBrief {
+  folder: string;
+  slug: string | null;
+  last_activity_at: string | null;
+  note: { branch: string; updated_at: string; text: string } | null;
+  other_notes: number;
+  worktrees: ProjectWorktree[];
+  ci_status: "success" | "failure" | "in_progress" | "unknown";
+  open_prs: { number: number; title: string; url: string; opened_at: string }[];
+  reasons: string[];
+}
+
+/** gym_tracker's ExerciseProgressPoint. */
+export interface GymSet {
+  logged_at: string;
+  weight_lb: number;
+  reps_done: number;
+}
+
+/** gym_tracker GET /api/v1/assistant/summary (AssistantSummaryOut). */
+export interface GymSummary {
+  username: string;
+  routine: { id: number; name: string; is_active: boolean } | null;
+  next_gym_day: { id: number; name: string } | null;
+  last_session_date: string | null;
+  exercises: {
+    id: number;
+    name: string;
+    muscle_group: string;
+    gym_day: string;
+    latest: GymSet | null;
+    best_30d: GymSet | null;
+  }[];
+}
+
+export interface AssistantBrief {
+  generated_at: string;
+  calendar: { state: BriefState; events: CalendarEvent[] };
+  projects: { state: BriefState; reported_at: string | null; projects: ProjectBrief[] };
+  games: {
+    configured: boolean;
+    priority: SportsEvent[];
+    top_25: SportsEvent[];
+    slate: Record<"NFL" | "NBA", SportsEvent[]>;
+  };
+  gym: { state: BriefState; app_url: string | null; data: GymSummary | null };
 }

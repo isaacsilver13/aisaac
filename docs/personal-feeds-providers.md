@@ -8,7 +8,8 @@ Plan: [personal feeds and daily digest](plans/2026-10-07-personal-feeds-and-dail
 | --- | --- | --- |
 | News | Live | Public RSS/Atom allowlist in `backend/app/personal_news.py` (`FEEDS`): Federal Reserve, SEC, NPR (Economy/Business/Technology/Politics), Ars Technica, arXiv (math, stat.ML), Quanta. Headlines + links only; every item links to the publisher. |
 | Daily digest | Built, **not scheduled** | `personal_digest.py`, `POST /internal/daily-digest/send` |
-| Sports | **Built, no live provider** | `personal_sports.py`, `/api/v1/personal/sports`, Sports page. Provider boundary + normalizer + filters (league/team/conference/Top 25) are tested against fixtures. `PROVIDER` is `None`, so the page shows official scoreboard links until a source is approved (see spike below). |
+| Sports | Live (ESPN) | `personal_sports.py` + `personal_espn.py`, `/api/v1/personal/sports`, Sports page. ESPN public scoreboard JSON, approved by Isaac 2026-10-19 as an exception (see below). Priority teams: Bears, Bulls, White Sox, Northwestern and Temple (football + basketball). |
+| Game reminders | Built, **not scheduled** | `POST /internal/game-reminders/send`: one ntfy push per priority-team game, within 60 min of start |
 | Shoes | **Built, no live provider** | `personal_shoes.py`, `/api/v1/personal/shoes`, Shoes page. User-managed watches and release links (write token), price-change detection with bounded history, fixture-tested. `PROVIDER` is `None` until eBay Browse production access is approved. No scraping. |
 
 Feed liveness was checked once on 2026-10-07 (all 10 returned HTTP 200 and parsed). Each publisher's
@@ -35,13 +36,21 @@ Use one daily job at [cron-job.org](https://cron-job.org) instead of an hourly G
 - Timeout 30 s (a cold Fly start plus feed refresh). Enable failure notifications.
 - First run `?dry_run=true`, then one manual send, then enable the schedule after a few days of review.
 
-## Provider spike (2026-10-07) — nothing approved
+### Game reminders job
+
+- URL: `https://aisaac-dashboard.fly.dev/internal/game-reminders/send` (method POST), same
+  `X-Internal-Secret` header as the digest.
+- Schedule: every 15 minutes. Needs `NTFY_TOPIC`. A game is pushed once, and only marked sent after
+  ntfy accepts it, so a failed push retries on the next tick. The ESPN feed refreshes at most hourly.
+- First run `?dry_run=true` (lists games due now, sends nothing).
+
+## Provider spike (2026-10-07)
 
 Searched, not yet verified against authoritative terms. No key was requested and no account created.
 
 | Candidate | What was found | Decision |
 | --- | --- | --- |
-| ESPN scoreboard JSON | Undocumented; no published terms or limits | **Rejected** (plan forbids undocumented endpoints) |
+| ESPN scoreboard JSON | Undocumented; no published terms or limits | **Approved as an exception 2026-10-19** by Isaac: the only free source covering NFL/NBA/MLB/NCAAF/NCAAB with AP rankings, already used by NFL_Confidence. May change without notice; a failure keeps the last snapshot. Date ranges return 400, so one call per day. |
 | CollegeFootballData API | Free key, shared monthly call quota (reported ~1,000/month, may have changed); terms page dated Aug 2026 permits use. Could not confirm AP Top 25 or conference data is on the free tier. NFL/NBA/MLB not covered | **Candidate for NCAAF + rankings**; confirm tier page and rankings endpoint before use |
 | TheSportsDB | Free key; sources conflict on rate limit and non-commercial terms; live scores need a paid tier | **Candidate for schedules**, terms to be read first |
 | balldontlie | Free tier reported at 5 req/min, games/teams only; sources conflict | **Candidate for NBA schedules**, terms to be read first |
