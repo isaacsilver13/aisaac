@@ -58,4 +58,25 @@ describe("Assistant", () => {
     expect(await screen.findByText(/Calendar isn't connected/)).toBeTruthy();
     expect(screen.getByText(/Toronto Raptors @ Chicago Bulls/)).toBeTruthy();
   });
+
+  it("shows gym_tracker's next day and 30-day bests", async () => {
+    window.localStorage.setItem("aisaac.dashboardToken", "t");
+    const set = { logged_at: "2026-10-18T12:00:00", weight_lb: 185, reps_done: 8 };
+    const gym = {
+      state: "ok", app_url: "https://gym.test",
+      data: {
+        username: "isaac", routine: { id: 1, name: "PPL", is_active: true },
+        next_gym_day: { id: 2, name: "Pull" }, last_session_date: "2026-10-18",
+        exercises: [
+          { id: 1, name: "Bench", muscle_group: "Chest", gym_day: "Push", latest: set, best_30d: set },
+          { id: 2, name: "Row", muscle_group: "Back", gym_day: "Pull", latest: null, best_30d: null },
+        ],
+      },
+    };
+    vi.stubGlobal("fetch", vi.fn(async () => json(brief({ gym }))));
+    render(<Assistant />);
+    expect(await screen.findByText("Pull")).toBeTruthy();
+    expect(screen.getByText("Bench: best 185 lb × 8 (30 days)")).toBeTruthy();
+    expect(screen.queryByText(/Row: best/)).toBeNull();
+  });
 });

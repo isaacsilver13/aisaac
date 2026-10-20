@@ -490,17 +490,27 @@ export interface ProjectBrief {
   reasons: string[];
 }
 
+/** gym_tracker's ExerciseProgressPoint. */
 export interface GymSet {
+  logged_at: string;
   weight_lb: number;
-  reps: number;
-  date?: string;
+  reps_done: number;
 }
 
+/** gym_tracker GET /api/v1/assistant/summary (AssistantSummaryOut). */
 export interface GymSummary {
-  routine: { id: number; name: string } | null;
+  username: string;
+  routine: { id: number; name: string; is_active: boolean } | null;
   next_gym_day: { id: number; name: string } | null;
   last_session_date: string | null;
-  exercises: { name: string; latest: GymSet | null; best: GymSet | null }[];
+  exercises: {
+    id: number;
+    name: string;
+    muscle_group: string;
+    gym_day: string;
+    latest: GymSet | null;
+    best_30d: GymSet | null;
+  }[];
 }
 
 export interface AssistantBrief {

@@ -126,8 +126,8 @@ function Brief({ data }: { data: AssistantBrief }) {
           )}
           {gym.data && gym.data.exercises.length > 0 && (
             <ul aria-label="Recent bests">
-              {gym.data.exercises.filter((x) => x.best).map((x) => (
-                <li key={x.name}>{x.name}: best {x.best!.weight_lb} lb × {x.best!.reps}</li>
+              {gym.data.exercises.map((x) => x.best_30d && (
+                <li key={x.id}>{x.name}: best {x.best_30d.weight_lb} lb × {x.best_30d.reps_done} (30 days)</li>
               ))}
             </ul>
           )}
