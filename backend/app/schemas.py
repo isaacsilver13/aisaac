@@ -275,6 +275,36 @@ class NeonUsageIn(BaseModel):
     )
 
 
+class WorktreeStatus(BaseModel):
+    """One local checkout of a project; folder name only, never a full local path."""
+
+    folder: str = Field(max_length=120)
+    branch: Optional[str] = Field(default=None, max_length=200)
+    last_commit_at: Optional[datetime] = None
+    last_commit_subject: str = Field(default="", max_length=200)
+    dirty_files: int = Field(default=0, ge=0)
+    ahead: Optional[int] = Field(default=None, ge=0, description="Commits not on origin/<default>")
+
+
+class LeftOffNote(BaseModel):
+    branch: str = Field(max_length=200)
+    updated_at: datetime
+    text: str = Field(max_length=1000)
+
+
+class ProjectStatus(BaseModel):
+    folder: str = Field(max_length=120)
+    slug: Optional[str] = Field(default=None, max_length=200, description="owner/repo of origin")
+    worktrees: list[WorktreeStatus] = Field(default_factory=list, max_length=30)
+    notes: list[LeftOffNote] = Field(default_factory=list, max_length=5)
+
+
+class ProjectStatusIn(BaseModel):
+    """Pushed hourly by scripts/push_project_status.py from the workspace machine."""
+
+    projects: list[ProjectStatus] = Field(max_length=60)
+
+
 class ClaudeUsageOut(ClaudeUsageIn):
     reported_at: datetime
 

@@ -54,7 +54,8 @@ def to_raw(league: str, event: dict, poll_date: Optional[str]) -> Optional[dict]
     if "home" not in sides or "away" not in sides:
         return None
     kind = (comp.get("status") or event.get("status") or {}).get("type", {})
-    status = "postponed" if kind.get("name") == "STATUS_POSTPONED" else STATES.get(kind.get("state"))
+    postponed = kind.get("name") == "STATUS_POSTPONED"
+    status = "postponed" if postponed else STATES.get(kind.get("state"))
     played = status in ("live", "final")
     url = next(
         (link["href"] for link in event.get("links", [])

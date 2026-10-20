@@ -60,6 +60,7 @@ from .schemas import (
     LearningProgressIn,
     NeonUsageIn,
     NeonUsageOut,
+    ProjectStatusIn,
     ProviderCostIn,
     ProviderCostOut,
     PushReportIn,
@@ -230,6 +231,7 @@ _METRIC_MODELS = {
     "codex": CodexUsageIn,
     "neon": NeonUsageIn,
     "fly": ProviderCostIn,
+    "projects": ProjectStatusIn,
 }
 
 

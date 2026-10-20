@@ -4,6 +4,8 @@ Configuration comes from env vars or ~/.claude/aisaac_push.json (same keys):
     AISAAC_DASHBOARD_URL      e.g. https://aisaac-dashboard.fly.dev
     AISAAC_INTERNAL_SECRET    the dashboard's INTERNAL_REPORT_SECRET
     SECOND_BRAIN_PATH         vault folder for second_brain_push.py (default ~/second-brain)
+    WORKSPACE_REPOS_PATH      repos folder for push_project_status.py
+                              (default ~/nba_prediction/repos)
 """
 
 from __future__ import annotations
@@ -15,7 +17,9 @@ from pathlib import Path
 from typing import Any
 
 CONFIG_FILE = Path.home() / ".claude" / "aisaac_push.json"
-CONFIG_KEYS = ("AISAAC_DASHBOARD_URL", "AISAAC_INTERNAL_SECRET", "SECOND_BRAIN_PATH")
+CONFIG_KEYS = (
+    "AISAAC_DASHBOARD_URL", "AISAAC_INTERNAL_SECRET", "SECOND_BRAIN_PATH", "WORKSPACE_REPOS_PATH"
+)
 
 
 def load_config() -> dict[str, str]:
