@@ -4,7 +4,7 @@
 1. Check `/api/v1/health/metrics` for `quota_remaining` — if near zero, The Odds API's free-tier
    quota is exhausted for the billing period. The cache will keep serving the last good snapshot
    (`stale: true`) until quota resets or the TTL allows a refresh.
-2. Check `fly logs -a betting-aggregator-api` for `ProviderAuthError` (key rotated/revoked) or
+2. Check `fly logs -a bet-watch` for `ProviderAuthError` (key rotated/revoked) or
    `ProviderRateLimitError` (429s — quota exhausted mid-request).
 
 ## Player props showing empty
