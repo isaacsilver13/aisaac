@@ -70,6 +70,6 @@ def test_every_app_has_a_stack_map_with_an_entry_point() -> None:
             stack = STACKS.get(app.id)
             assert stack is not None, f"{app.id} has no stack map"
             assert stack.nodes[0].kind == "ui", f"{app.id} flow should start at its UI"
-            fly_hosts = {n.host for n in stack.nodes if n.host and "-" in n.host}
+            hosts = {n.host for n in stack.nodes if n.host}
             if profile == "production" and app.fly_app:
-                assert app.fly_app in fly_hosts, f"{app.id} stack omits its Fly app"
+                assert app.fly_app in hosts, f"{app.id} stack omits its Fly app"

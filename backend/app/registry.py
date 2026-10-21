@@ -134,13 +134,14 @@ _REGISTRY: Mapping[str, tuple[AppDefinition, ...]] = {
         ),
         AppDefinition(
             id="betting-aggregator",
-            fly_app="betting-aggregator-api",
+            fly_app="bet-watch",
+            cost_aliases=("betting-aggregator-api",),
             name="Betting Aggregator",
             category="Sports",
             description="Odds comparison across supported sports and providers.",
-            product_url="https://betting-aggregator-api.fly.dev/",
-            health_url="https://betting-aggregator-api.fly.dev/api/v1/health",
-            metrics_url="https://betting-aggregator-api.fly.dev/api/v1/health/metrics",
+            product_url="https://bet-watch.fly.dev/",
+            health_url="https://bet-watch.fly.dev/api/v1/health",
+            metrics_url="https://bet-watch.fly.dev/api/v1/health/metrics",
             metric_allowlist=(
                 "last_activity_at",
                 "data_freshness_at",
@@ -158,26 +159,28 @@ _REGISTRY: Mapping[str, tuple[AppDefinition, ...]] = {
         ),
         AppDefinition(
             id="gym-tracker",
-            fly_app="isilver-gym-tracker-api",
+            fly_app="aisaac-gym",
+            cost_aliases=("isilver-gym-tracker-api",),
             name="Gym Tracker",
             category="Health",
             description="Workout routine builder and progress tracker.",
-            product_url="https://isilver-gym-tracker-api.fly.dev/",
-            health_url="https://isilver-gym-tracker-api.fly.dev/api/v1/health",
-            readiness_url="https://isilver-gym-tracker-api.fly.dev/api/v1/health/ready",
-            metrics_url="https://isilver-gym-tracker-api.fly.dev/api/v1/health/metrics",
+            product_url="https://aisaac-gym.fly.dev/",
+            health_url="https://aisaac-gym.fly.dev/api/v1/health",
+            readiness_url="https://aisaac-gym.fly.dev/api/v1/health/ready",
+            metrics_url="https://aisaac-gym.fly.dev/api/v1/health/metrics",
             metric_allowlist=("last_activity_at", "sessions_logged_total"),
         ),
         AppDefinition(
             id="portfolio-analysis",
-            fly_app="portfolio-analysis-api",
+            fly_app="aisaac-portfolio",
+            cost_aliases=("portfolio-analysis-api",),
             name="Portfolio Analysis",
             category="Finance",
             description="Personal brokerage portfolio import, P&L, and SPY-alpha analysis.",
-            product_url="https://portfolio-analysis-api.fly.dev/",
-            health_url="https://portfolio-analysis-api.fly.dev/api/v1/health",
-            readiness_url="https://portfolio-analysis-api.fly.dev/api/v1/health/ready",
-            metrics_url="https://portfolio-analysis-api.fly.dev/api/v1/health/metrics",
+            product_url="https://aisaac-portfolio.fly.dev/",
+            health_url="https://aisaac-portfolio.fly.dev/api/v1/health",
+            readiness_url="https://aisaac-portfolio.fly.dev/api/v1/health/ready",
+            metrics_url="https://aisaac-portfolio.fly.dev/api/v1/health/metrics",
             metric_allowlist=PORTFOLIO_METRICS,
             metrics_token_setting="portfolio_metrics_token",
         ),
@@ -201,13 +204,14 @@ _REGISTRY: Mapping[str, tuple[AppDefinition, ...]] = {
         ),
         AppDefinition(
             id="nba-teammates-chain",
-            fly_app="nba-teammates-chain-api",
+            fly_app="nbachain",
+            cost_aliases=("nba-teammates-chain-api",),
             name="NBA Teammates Chain",
             category="Games",
             description="Daily NBA teammate-chain puzzle with shareable challenges.",
-            product_url="https://nba-teammates-chain-api.fly.dev/",
-            health_url="https://nba-teammates-chain-api.fly.dev/api/v1/health",
-            readiness_url="https://nba-teammates-chain-api.fly.dev/api/v1/health/ready",
+            product_url="https://nbachain.fly.dev/",
+            health_url="https://nbachain.fly.dev/api/v1/health",
+            readiness_url="https://nbachain.fly.dev/api/v1/health/ready",
         ),
     ),
 }
@@ -247,9 +251,9 @@ STACKS: Mapping[str, AppStack] = {
         description="One Fly app serves UI and API; the API merges provider odds with its DB.",
         region="ewr",
         nodes=(
-            _node("ui", "Odds comparison", "React 18 · Vite 6", "betting-aggregator-api"),
+            _node("ui", "Odds comparison", "React 18 · Vite 6", "bet-watch"),
             _node(
-                "api", "Aggregator API", "FastAPI 0.115 · SQLAlchemy 2.0", "betting-aggregator-api"
+                "api", "Aggregator API", "FastAPI 0.115 · SQLAlchemy 2.0", "bet-watch"
             ),
             _node("database", "Odds + cache state", "PostgreSQL", "Neon", "asyncpg"),
             _node("provider", "Odds provider", "The Odds API", None, "External HTTP API"),
@@ -269,8 +273,8 @@ STACKS: Mapping[str, AppStack] = {
         description="One Fly app serves the workout UI and its API.",
         region="ewr",
         nodes=(
-            _node("ui", "Workout interface", "React 18 · Vite 6", "isilver-gym-tracker-api"),
-            _node("api", "Gym API", "FastAPI 0.115 · SQLAlchemy 2.0", "isilver-gym-tracker-api"),
+            _node("ui", "Workout interface", "React 18 · Vite 6", "aisaac-gym"),
+            _node("api", "Gym API", "FastAPI 0.115 · SQLAlchemy 2.0", "aisaac-gym"),
             _node("database", "Application data", "PostgreSQL", None, "psycopg 3"),
         ),
         monitoring=_PUBLIC_PROBES,
@@ -279,9 +283,9 @@ STACKS: Mapping[str, AppStack] = {
         description="Owns private portfolio data; AIsaac reads only scoped aggregate metrics.",
         region="iad",
         nodes=(
-            _node("ui", "Portfolio interface", "React 19 · Vite 8", "portfolio-analysis-api"),
+            _node("ui", "Portfolio interface", "React 19 · Vite 8", "aisaac-portfolio"),
             _node(
-                "api", "Portfolio API", "FastAPI 0.115 · SQLAlchemy 2.0", "portfolio-analysis-api"
+                "api", "Portfolio API", "FastAPI 0.115 · SQLAlchemy 2.0", "aisaac-portfolio"
             ),
             _node("database", "Private portfolio data", "PostgreSQL", None, "Not read by AIsaac"),
         ),
@@ -323,9 +327,9 @@ STACKS: Mapping[str, AppStack] = {
         description="One Fly app serves the game UI and API; AIsaac probes health and readiness.",
         region="ewr",
         nodes=(
-            _node("ui", "Chain game", "React 18 · Vite 6", "nba-teammates-chain-api"),
+            _node("ui", "Chain game", "React 18 · Vite 6", "nbachain"),
             _node(
-                "api", "Game API", "FastAPI · SQLAlchemy 2.0", "nba-teammates-chain-api"
+                "api", "Game API", "FastAPI · SQLAlchemy 2.0", "nbachain"
             ),
             _node(
                 "database",
