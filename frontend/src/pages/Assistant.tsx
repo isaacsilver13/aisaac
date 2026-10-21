@@ -141,7 +141,7 @@ function Brief({ data }: { data: AssistantBrief }) {
 export default function Assistant() {
   const token = readToken();
   const { data, loading, refreshing, error, reload } = useAsyncData(
-    useCallback(() => fetchAssistant(token), [token]),
+    useCallback((force: boolean) => fetchAssistant(token, force), [token]),
   );
   return (
     <>
