@@ -30,6 +30,7 @@ from . import (
     personal_ebay,
     personal_news,
     personal_own,
+    personal_philosophy,
     personal_shoes,
     personal_sports,
     personal_stockx,
@@ -681,6 +682,42 @@ def personal_push_toggle(kind: str, payload: PushPrefIn) -> None:
     if kind not in daily_pushes.PUSHES:
         raise HTTPException(404, "Unknown push.")
     personal_store.set_push_pref(kind, payload.enabled)
+
+
+class JournalIn(BaseModel):
+    intention: Optional[str] = Field(default=None, max_length=1000)
+    reflection: Optional[str] = Field(default=None, max_length=5000)
+
+
+@app.get("/api/v1/personal/philosophy/today", dependencies=[Depends(_require_read_token)])
+def philosophy_today(day: Optional[date] = None) -> dict:
+    day = day or learning.today()
+    return {
+        "date": day.isoformat(),
+        "entry": personal_philosophy.entry_for(day),
+        "journal": personal_store.get_journal(day.isoformat()),
+    }
+
+
+@app.put(
+    "/api/v1/personal/philosophy/journal/{local_date}",
+    dependencies=[Depends(_require_write_token)],
+)
+def philosophy_journal_save(local_date: date, payload: JournalIn) -> dict:
+    entry = personal_philosophy.entry_for(local_date)
+    return personal_store.upsert_journal(
+        local_date.isoformat(), entry["id"], payload.intention, payload.reflection
+    )
+
+
+@app.get("/api/v1/personal/philosophy/journal", dependencies=[Depends(_require_read_token)])
+def philosophy_journal() -> list[dict]:
+    by_id = {e["id"]: e for e in personal_philosophy.ENTRIES}
+    out = []
+    for row in personal_store.list_journal():
+        entry = by_id.get(row["entry_id"], {})
+        out.append({**row, "author": entry.get("author"), "theme": entry.get("theme")})
+    return out
 
 
 @app.post("/internal/daily-pushes/send", dependencies=[Depends(_require_internal_secret)])
