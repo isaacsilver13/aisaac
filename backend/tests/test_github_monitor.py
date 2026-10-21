@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 
-from app.github_monitor import GitHubMonitor
+from app.github_monitor import GitHubMonitor, _ci_status
 from app.schemas import RepoDefinition
 
 
@@ -269,3 +269,13 @@ def test_activity_discovers_repos_from_github(monkeypatch) -> None:
     assert by_repo["widgets"].name == "Fixture"  # curated name kept
     assert by_repo["new_thing"].repo_id == "new-thing"
     assert by_repo["new_thing"].private is True
+
+
+def test_ci_status_only_real_failures_count_as_failure() -> None:
+    assert _ci_status("completed", "failure") == "failure"
+    assert _ci_status("completed", "timed_out") == "failure"
+    # A bot PR's run waiting for approval is pending, not broken.
+    assert _ci_status("completed", "action_required") == "in_progress"
+    assert _ci_status("completed", "cancelled") == "unknown"
+    assert _ci_status("completed", "skipped") == "unknown"
+    assert _ci_status("in_progress", None) == "in_progress"
