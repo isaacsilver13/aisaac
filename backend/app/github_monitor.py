@@ -16,14 +16,20 @@ from .schemas import (
     RepoDefinition,
 )
 
+# GitHub run conclusions that mean the code broke. Others (cancelled, skipped, neutral, stale)
+# say nothing about the code, and action_required is a run waiting for someone to approve it.
+_FAILED = frozenset({"failure", "timed_out", "startup_failure"})
+
 
 def _ci_status(status: str | None, conclusion: str | None) -> CiStatus:
     if status is not None and status != "completed":
         return "in_progress"
     if conclusion == "success":
         return "success"
-    if conclusion is not None:
+    if conclusion in _FAILED:
         return "failure"
+    if conclusion == "action_required":
+        return "in_progress"
     return "unknown"
 
 
