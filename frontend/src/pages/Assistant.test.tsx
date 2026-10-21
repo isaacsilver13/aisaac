@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import Assistant from "./Assistant";
@@ -49,6 +49,19 @@ describe("Assistant", () => {
     expect(screen.getByText(/Doing: summary endpoint · Next: tests/)).toBeTruthy();
     expect(screen.getByText(/2 uncommitted files/)).toBeTruthy();
     expect(screen.getByText("Gym Tracker isn't connected.")).toBeTruthy();
+  });
+
+  it("reads the stored brief on open and rebuilds it live on Refresh", async () => {
+    window.localStorage.setItem("aisaac.dashboardToken", "t");
+    const fetchMock = vi.fn<(url: string) => Promise<Response>>(async () => json(brief()));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Assistant />);
+    await screen.findByText(/Dentist/);
+    expect(fetchMock.mock.calls.map(([u]) => u)).toEqual(["/api/v1/personal/assistant"]);
+    fireEvent.click(screen.getByRole("button", { name: /Refresh/ }));
+    await waitFor(() => expect(fetchMock.mock.calls.map(([u]) => u)).toEqual([
+      "/api/v1/personal/assistant", "/api/v1/personal/assistant?force_refresh=true",
+    ]));
   });
 
   it("explains a section that is not connected without hiding the others", async () => {

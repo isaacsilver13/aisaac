@@ -10,6 +10,7 @@ from typing import Literal, Optional
 
 import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, ValidationError, model_validator
@@ -631,9 +632,62 @@ async def _brief() -> dict:
     )
 
 
+async def _store_brief() -> dict:
+    brief = jsonable_encoder(await _brief())
+    personal_store.save_brief(brief)
+    return brief
+
+
 @app.get("/api/v1/personal/assistant", dependencies=[Depends(_require_read_token)])
-async def personal_assistant_brief() -> dict:
-    return await _brief()
+async def personal_assistant_brief(force_refresh: bool = Query(default=False)) -> dict:
+    """Serves the stored brief (rebuilt hourly by /internal/personal/refresh); builds it live
+    on the page's Refresh button or when none is stored yet."""
+    if not force_refresh and (stored := personal_store.load_brief()) is not None:
+        return stored
+    return await _store_brief()
+
+
+# Codes that mean a source was reached and failed; not_configured/not_connected are expected.
+_REFRESH_FAILURES = ("fetch_failed", "error")
+
+
+def _own_refresh() -> str:
+    results = personal_own.refresh(settings.token_encryption_key).values()
+    return "fetch_failed" if "fetch_failed" in results else "ok"
+
+
+@app.post("/internal/personal/refresh", dependencies=[Depends(_require_internal_secret)])
+async def personal_refresh() -> dict[str, str]:
+    """Hourly (cron-job.org): refresh every personal feed, then store a fresh Assistant brief.
+
+    Best effort: each source is isolated and reports a short code, so one failure never
+    stops the others. The brief is built last so it sees the refreshed games.
+    """
+    steps = {
+        "news": lambda: personal_news.refresh() or "ok",
+        "sports": personal_sports.refresh,
+        "shoes": personal_shoes.refresh,
+        "own": _own_refresh,
+    }
+    results: dict[str, str] = {}
+    for name, step in steps.items():
+        try:
+            results[name] = await asyncio.to_thread(step)
+        except Exception:  # never surface upstream detail
+            logging.getLogger("aisaac.personal").warning("%s refresh failed", name, exc_info=True)
+            results[name] = "error"
+    try:
+        await _store_brief()
+        results["assistant"] = "ok"
+    except Exception:
+        logging.getLogger("aisaac.personal").warning("brief rebuild failed", exc_info=True)
+        results["assistant"] = "error"
+    failed = [f"{k}:{v}" for k, v in results.items() if v in _REFRESH_FAILURES]
+    if failed:
+        metrics_store.record_run("personal-refresh", ok=False, error=",".join(failed))
+    else:
+        metrics_store.save("personal-refresh", json.dumps(results))  # also logs an ok run
+    return results
 
 
 @app.post("/internal/daily-digest/send", dependencies=[Depends(_require_internal_secret)])

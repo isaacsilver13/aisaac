@@ -20,7 +20,9 @@ _PUSH_JOBS = (
     ("fly-costs", "Fly cost push", "fly", 26.0),
     ("project-status", "Project status push", "projects", 2.0),
 )
-_RUN_SOURCES = {id_: source for id_, _, source, _ in _PUSH_JOBS} | {"second-brain": "second-brain"}
+_RUN_SOURCES = {id_: source for id_, _, source, _ in _PUSH_JOBS} | {
+    "second-brain": "second-brain", "personal-refresh": "personal-refresh",
+}
 
 
 def _age_hours(iso: str, now: datetime) -> float:
@@ -80,6 +82,13 @@ def snapshot(poll_interval_seconds: float, now: Optional[datetime] = None) -> li
     rows.append(_row(
         "second-brain", "Second brain sync", "push", "scripts/second_brain_push.py",
         brain["pushed_at"] if brain else None, 26.0, now, _push_failure("second-brain"),
+    ))
+    refresh = metrics_store.load("personal-refresh")
+    # Hourly 06:00-24:00 Chicago; 7h so the overnight gap is not flagged stale.
+    rows.append(_row(
+        "personal-refresh", "Personal feeds refresh", "push",
+        "cron-job.org via /internal/personal/refresh",
+        refresh["reported_at"] if refresh else None, 7.0, now, _push_failure("personal-refresh"),
     ))
     events = ci_events.list_events(limit=1)
     rows.append(_row(

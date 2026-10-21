@@ -199,8 +199,6 @@ export async function completeLearningModule(day: string, path: string, writeTok
   return ((await response.json()) as { completed_at: string }).completed_at;
 }
 
-const STALE_NEWS_MS = 60 * 60 * 1000;
-
 export async function getNews(token: string): Promise<NewsResponse> {
   const response = await fetch("/api/v1/personal/news", {
     headers: { Accept: "application/json", "X-Dashboard-Token": token },
@@ -210,16 +208,13 @@ export async function getNews(token: string): Promise<NewsResponse> {
   return (await response.json()) as NewsResponse;
 }
 
-/** Loads the stored snapshot; refreshes upstream first on a manual request or when it is over an hour old. */
+/** Loads the stored snapshot (refreshed hourly by /internal/personal/refresh); refreshes upstream first only on the Refresh button. */
 export async function fetchNews(token: string, forceRefresh = false): Promise<NewsResponse> {
-  let news = await getNews(token);
-  const age = news.freshness_at ? Date.now() - new Date(news.freshness_at).getTime() : Infinity;
-  if (forceRefresh || age > STALE_NEWS_MS) {
+  if (forceRefresh) {
     // A failed refresh must not hide the last good snapshot; per-feed errors show in `sources`.
     await fetch("/api/v1/personal/news/refresh", { method: "POST", headers: { "X-Dashboard-Token": token } }).catch(() => undefined);
-    news = await getNews(token);
   }
-  return news;
+  return getNews(token);
 }
 
 export async function setNewsState(itemId: number, state: NewsState, writeToken = readWriteToken()): Promise<void> {
@@ -251,7 +246,9 @@ async function fetchRefreshed<T>(path: string, token: string, forceRefresh: bool
 
 export const fetchSports = (token: string, forceRefresh = false) => fetchRefreshed<SportsResponse>("sports", token, forceRefresh);
 
-export const fetchAssistant = (token: string) => getPersonal<AssistantBrief>("assistant", token);
+/** The stored brief (rebuilt hourly); `forceRefresh` rebuilds it live. */
+export const fetchAssistant = (token: string, forceRefresh = false) =>
+  getPersonal<AssistantBrief>(forceRefresh ? "assistant?force_refresh=true" : "assistant", token);
 
 export const fetchShoes = (token: string, forceRefresh = false) => fetchRefreshed<ShoesResponse>("shoes", token, forceRefresh);
 

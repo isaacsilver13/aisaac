@@ -54,6 +54,17 @@ Use one daily job at [cron-job.org](https://cron-job.org) instead of an hourly G
   push retries on the next hourly call. The response lists each kind's status
   (`sent`, `failed`, `not_due`, `not_ready`, `already_sent`, `disabled`).
 
+### Personal refresh job
+
+- URL: `<AIsaac URL>/internal/personal/refresh` (method POST), same `X-Internal-Secret` header. Same host
+  note as the daily pushes job: update it with the other consumers when the app is renamed.
+- Schedule: every hour 06:00–24:00, timezone **America/Chicago**. Timeout 30 s.
+- Refreshes news, sports, shoes and connected own-data, then rebuilds the Assistant brief and stores it.
+  Opening News or Assistant only reads stored data; each page's Refresh button still refreshes on demand.
+  The response lists each source's short code (`ok`, `not_configured`, `fetch_failed`, `error`, ...); one
+  failing source never stops the others. Runs show on the Automations page ("Personal feeds refresh"),
+  flagged stale after 7 hours to allow for the overnight gap.
+
 ## Provider spike (2026-10-07)
 
 Searched, not yet verified against authoritative terms. No key was requested and no account created.

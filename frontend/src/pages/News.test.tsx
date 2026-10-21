@@ -35,6 +35,18 @@ describe("News", () => {
     expect(link.rel).toContain("noopener");
   });
 
+  it("only reads the snapshot on open, even when it is old; Refresh POSTs", async () => {
+    window.localStorage.setItem("aisaac.dashboardToken", "t");
+    const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async () => json(snapshot({ freshness_at: "2026-01-01T00:00:00+00:00" })));
+    vi.stubGlobal("fetch", fetchMock);
+    const posts = () => fetchMock.mock.calls.filter(([, init]) => init?.method === "POST").map(([u]) => u);
+    render(<News />);
+    await screen.findByText("Fed holds rates");
+    expect(posts()).toEqual([]);
+    fireEvent.click(screen.getByRole("button", { name: /Refresh/ }));
+    await waitFor(() => expect(posts()).toEqual(["/api/v1/personal/news/refresh"]));
+  });
+
   it("shows an error state when the request fails", async () => {
     window.localStorage.setItem("aisaac.dashboardToken", "t");
     vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 500 })));

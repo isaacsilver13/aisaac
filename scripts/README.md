@@ -77,6 +77,6 @@ Schedule it hourly (Windows Task Scheduler); the Automations page flags it stale
 
 ## Scheduled cron-job.org calls (no script)
 
-The daily digest, game reminders and hourly daily pushes (`POST /internal/daily-pushes/send`) are
-plain HTTP calls scheduled at cron-job.org, set up by hand. See
+The daily digest, game reminders, hourly daily pushes (`POST /internal/daily-pushes/send`) and the
+hourly personal refresh (`POST /internal/personal/refresh`, 06:00–24:00 Chicago) are plain HTTP calls scheduled at cron-job.org, set up by hand. See
 [docs/personal-feeds-providers.md](../docs/personal-feeds-providers.md#scheduling-manual-needs-your-approval--nothing-is-activated).

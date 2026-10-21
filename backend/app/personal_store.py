@@ -7,6 +7,7 @@ Feed state stores a short error *code*, never an upstream response body.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -144,6 +145,12 @@ CREATE TABLE IF NOT EXISTS philosophy_journal (
     intention TEXT,
     reflection TEXT,
     updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS assistant_snapshot (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    payload TEXT NOT NULL,
+    built_at TEXT NOT NULL
 );
 """
 
@@ -573,3 +580,23 @@ def list_journal(limit: int = 365) -> list[dict]:
             "SELECT * FROM philosophy_journal ORDER BY local_date DESC LIMIT ?", (limit,)
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+# --- Assistant brief snapshot ------------------------------------------------------------
+
+
+def save_brief(brief: dict) -> None:
+    """Keep only the latest brief (one row); the scheduled refresh replaces it hourly."""
+    with _connect() as conn:
+        conn.execute(
+            "INSERT INTO assistant_snapshot (id, payload, built_at) VALUES (1, ?, ?) "
+            "ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, "
+            "built_at = excluded.built_at",
+            (json.dumps(brief), _now()),
+        )
+
+
+def load_brief() -> Optional[dict]:
+    with _connect() as conn:
+        row = conn.execute("SELECT payload FROM assistant_snapshot WHERE id = 1").fetchone()
+    return json.loads(row["payload"]) if row else None
