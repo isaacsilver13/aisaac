@@ -16,10 +16,19 @@ from . import metrics_store
 from .schemas import RepoActivity
 
 STALE_PUSH = timedelta(hours=3)
+# Attention thresholds (days since a worktree's last commit). Tune here.
+DIRTY_IDLE_DAYS = 3  # uncommitted files this old were probably forgotten
+UNMERGED_IDLE_DAYS = 7  # a feature branch idle this long with unmerged commits is parked
+MAIN_BRANCHES = ("main", "master")  # `ahead` here means commits not pushed to origin
 
 
 def _dt(value: Optional[str]) -> Optional[datetime]:
     return datetime.fromisoformat(value) if value else None
+
+
+def _idle_days(worktree: dict, now: datetime) -> int:
+    last = _dt(worktree.get("last_commit_at"))
+    return (now - last).days if last else 0
 
 
 def attention_reasons(
@@ -37,9 +46,26 @@ def attention_reasons(
         days = (now - pr.opened_at).days
         if days >= 2:
             reasons.append(f"PR #{pr.number} open {days} days")
-    # TODO(Isaac): local-work rules. Each worktree has `dirty_files`, `ahead` (commits not on
-    # main) and `last_commit_at`. Decide what counts as "needs me", e.g. uncommitted work left
-    # untouched for N days, or a branch with commits never merged. Thresholds are your call.
+    # Local work, one aggregated reason per kind so a repo with many worktrees stays one line.
+    # ponytail: "idle" = days since the worktree's last commit (no file mtimes are pushed).
+    trees = [(w, _idle_days(w, now)) for w in project["worktrees"]]
+    dirty = [days for w, days in trees if w["dirty_files"] and days >= DIRTY_IDLE_DAYS]
+    if dirty:
+        where = f" in {len(dirty)} worktrees" if len(dirty) > 1 else ""
+        reasons.append(f"uncommitted work{where}, untouched {max(dirty)} days")
+    unpushed = sum(w["ahead"] or 0 for w, _ in trees if w["branch"] in MAIN_BRANCHES)
+    if unpushed:
+        reasons.append(f"{unpushed} commit{'s' if unpushed > 1 else ''} on main not pushed")
+    parked = [
+        days for w, days in trees
+        if w["branch"] not in (None, *MAIN_BRANCHES) and (w["ahead"] or 0) > 0
+        and days >= UNMERGED_IDLE_DAYS
+    ]
+    if parked:
+        n = len(parked)
+        reasons.append(
+            f"{n} branch{'es' if n > 1 else ''} with unmerged commits, idle {max(parked)} days"
+        )
     return reasons
 
 

@@ -104,3 +104,41 @@ def test_section_states_without_or_with_old_push():
 def test_invalid_payload_is_rejected_and_logged():
     assert _push({"projects": [{"folder": "x" * 500}]}).status_code == 422
     assert metrics_store.last_failure("projects")["error"] == "invalid_payload"
+
+
+def _wt(branch, days_idle, dirty=0, ahead=0):
+    last = (NOW - timedelta(days=days_idle)).isoformat()
+    return {"folder": "x", "branch": branch, "dirty_files": dirty, "ahead": ahead,
+            "last_commit_subject": "", "last_commit_at": last}
+
+
+def _reasons(*worktrees):
+    project = {"worktrees": list(worktrees), "notes": []}
+    return personal_projects.attention_reasons(project, None, NOW)
+
+
+def test_quiet_project_has_no_reasons():
+    assert _reasons(_wt("main", 30), _wt("feat/a", 1, dirty=4, ahead=3)) == []  # fresh work is fine
+
+
+def test_uncommitted_work_aggregates_across_worktrees():
+    assert _reasons(_wt("main", 5, dirty=2)) == ["uncommitted work, untouched 5 days"]
+    many = _reasons(_wt("main", 5, dirty=2), _wt("feat/a", 12, dirty=1), _wt("feat/b", 2, dirty=9))
+    assert many == ["uncommitted work in 2 worktrees, untouched 12 days"]
+
+
+def test_unpushed_main_flags_immediately_but_parked_branches_wait_a_week():
+    assert _reasons(_wt("master", 0, ahead=1)) == ["1 commit on main not pushed"]
+    assert _reasons(_wt("feat/a", 6, ahead=3)) == []
+    assert _reasons(_wt("feat/a", 8, ahead=3), _wt("feat/b", 20, ahead=1)) == [
+        "2 branches with unmerged commits, idle 20 days"
+    ]
+    assert _reasons(_wt(None, 30, ahead=5)) == []  # detached checkouts are ignored
+
+
+def test_github_reasons_come_before_local_ones():
+    out = personal_projects.attention_reasons(
+        {"worktrees": [_wt("main", 4, dirty=1)], "notes": []},
+        _activity("gym", ci="failure"), NOW,
+    )
+    assert out == ["latest CI run failed", "uncommitted work, untouched 4 days"]
