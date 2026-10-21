@@ -74,3 +74,9 @@ leave the machine. It runs `git fetch` first (no prompts, 20 s cap per repo; `--
 Schedule it hourly (Windows Task Scheduler); the Automations page flags it stale after 2 hours.
 
     python scripts/push_project_status.py [--dry-run] [--no-fetch]
+
+## Scheduled cron-job.org calls (no script)
+
+The daily digest, game reminders and hourly daily pushes (`POST /internal/daily-pushes/send`) are
+plain HTTP calls scheduled at cron-job.org, set up by hand. See
+[docs/personal-feeds-providers.md](../docs/personal-feeds-providers.md#scheduling-manual-needs-your-approval--nothing-is-activated).

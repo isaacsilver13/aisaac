@@ -13,7 +13,10 @@ afterEach(() => {
 
 describe("Settings", () => {
   it("saves and clears the dashboard token", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ items: [] }))));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => new Response(JSON.stringify(url.includes("pushes") ? [] : { items: [] }))),
+    );
     render(<Settings />);
     await userEvent.type(screen.getByLabelText("Dashboard token"), " abc ");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));

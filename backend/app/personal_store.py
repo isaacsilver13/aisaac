@@ -132,6 +132,11 @@ CREATE TABLE IF NOT EXISTS digest_runs (
     freshness_at TEXT,
     error TEXT
 );
+
+CREATE TABLE IF NOT EXISTS push_prefs (
+    kind TEXT PRIMARY KEY,
+    enabled INTEGER NOT NULL DEFAULT 0
+);
 """
 
 STATES = ("new", "saved", "dismissed")
@@ -506,4 +511,22 @@ def finish_run(
             "UPDATE digest_runs SET status = ?, sent_at = ?, freshness_at = ?, error = ? "
             "WHERE local_date = ?",
             (status, _now() if status == "sent" else None, freshness_at, error, local_date),
+        )
+
+
+# --- Daily push toggles ----------------------------------------------------------------
+
+
+def get_push_prefs() -> dict[str, bool]:
+    """Only kinds ever toggled have a row; a missing kind is off."""
+    with _connect() as conn:
+        return {r["kind"]: bool(r["enabled"]) for r in conn.execute("SELECT * FROM push_prefs")}
+
+
+def set_push_pref(kind: str, enabled: bool) -> None:
+    with _connect() as conn:
+        conn.execute(
+            "INSERT INTO push_prefs (kind, enabled) VALUES (?, ?) "
+            "ON CONFLICT(kind) DO UPDATE SET enabled = excluded.enabled",
+            (kind, int(enabled)),
         )

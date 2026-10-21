@@ -447,6 +447,13 @@ export interface LearningExercise {
   options?: string[];
 }
 
+export interface PushPref {
+  kind: string;
+  /** Send hour, America/Chicago. */
+  hour: number;
+  enabled: boolean;
+}
+
 export interface LearningModule {
   date: string;
   path: string;
