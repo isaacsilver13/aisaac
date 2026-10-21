@@ -1,6 +1,6 @@
 # AIsaac — Philosophy daily practice (Stoicism, existentialism)
 
-Status: in progress
+Status: complete (2026-10-21, branch claude/daily-pushes-philosophy-7c4092)
 Scope: `repos/aisaac_dashboard` (`isaacsilver13/aisaac`). Branch from `origin/master`. Depends on
 [daily pushes](2026-10-21-daily-pushes.md).
 
@@ -49,3 +49,21 @@ question. Both are answered and journaled in an AIsaac `/philosophy` page; both 
 
 - Curating 60 accurate passages is the real work; spot-check citations against the public-domain texts
   (e.g. Project Gutenberg) rather than writing from memory.
+
+## Verification record (2026-10-21)
+
+- Corpus: 60 entries (Marcus Aurelius 10, Epictetus 10, Seneca 10; Nietzsche 8, Dostoevsky 7, Kierkegaard 6,
+  Sartre 3, Camus 3, de Beauvoir 3), alternating schools. Every quoted passage was extracted by script from the
+  source text (start/end phrase, whitespace collapsed, footnote markers and `_italic_` underscores removed), not
+  written from memory: Long, *Thoughts of Marcus Aurelius* (Gutenberg #15877; #2680 is Casaubon and was not used);
+  Higginson, *Enchiridion* (Gutenberg #45109); Gummere, *Moral Letters* (Wikisource); Common, *Zarathustra*
+  (Gutenberg #1998); Garnett, *Brothers Karamazov* (#28054) and *Notes from Underground* (#600); Hollander,
+  *Selections from the Writings of Kierkegaard* (1923, #60333). The Common translation of *The Joyful Wisdom* on
+  Gutenberg is mostly Cohn's, so it was not used. Book/section numbers were read from the source headings.
+- Sartre, Camus, de Beauvoir: paraphrases in our own words, no quotations. Citations name the work and part;
+  de Beauvoir's *Ethics of Ambiguity* freedom-of-others entry cites the work only (part not verified).
+- `pytest` 220 passed, `ruff check .` clean; `npm run lint`, `npm run test` (151), `npm run build` OK.
+- Manual: both kinds fired through `daily_pushes.run` at mocked 07:05 and 21:05 CT; messages were
+  "Epictetus: This instant, then, … — Stop postponing one improvement…" and the evening question.
+- Deviation: `entry_for` uses the same ordinal-mod rotation as `learning.pick()` rather than calling it, since
+  `pick()` filters to vault folders.

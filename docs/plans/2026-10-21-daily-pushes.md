@@ -1,6 +1,6 @@
 # AIsaac — Toggleable daily pushes (Plan 0, foundation for Books, Philosophy and the NBA report)
 
-Status: in progress
+Status: complete (2026-10-21, branch claude/daily-pushes-philosophy-7c4092)
 Scope: `repos/aisaac_dashboard` (GitHub `isaacsilver13/aisaac`). Branch from `origin/master` in a fresh worktree; the
 local checkout is on `fix/chess-lint`.
 
@@ -54,3 +54,19 @@ day, and is fired by one external cron job.
 ## Risks / decisions needed
 
 - None blocking. If ntfy is down at the send hour, the next hourly call retries (unmarked on failure).
+
+## Verification record (2026-10-21)
+
+- `pytest` 220 passed, `ruff check .` clean; frontend `npm run lint` clean, `npm run test` 151 passed,
+  `npm run build` OK.
+- Deviations: `run(now, send)` takes the sender (same pattern as `personal_sports.send_reminders`) and adds a
+  `failed` status for a send ntfy did not accept. The cron job is documented in
+  `docs/personal-feeds-providers.md` (with the other cron-job.org jobs); `scripts/README.md` points there.
+- Manual, local server with `NTFY_TOPIC` unset: toggled `philosophy_morning` on, `POST /internal/daily-pushes/send`
+  logged "COMS (not sent, no ntfy topic configured): Epictetus: …" and returned
+  `{"philosophy_morning": "failed", "philosophy_evening": "disabled"}`; a second call returned `failed` again.
+  That is the plan's own rule (an unaccepted push stays unmarked and retries), so the manual expectation of
+  `already_sent` cannot happen without a topic. With an accepting sender (in-process, same code path) the
+  sequence was `sent` → `already_sent` at 07:05 CT and evening `sent` at 21:05 CT.
+- Not done here (Isaac): the hourly cron-job.org job, `NTFY_TOPIC` on Fly, and adding the job to the
+  consumers list in the Fly-renames plan.
