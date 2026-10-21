@@ -1,4 +1,4 @@
-import type { AssistantBrief, NewShoeWatch, OwnResponse, NewsResponse, ShoesResponse, SportsResponse, NewsState, AutomationStatus, AutomationRun, ConfigItem, AppInfo, AppLogs, Deployments, HealthHistory, HistoryRange, LearningModule, PushPref, AgentSummary, CIEvent, DashboardResponse, FinancialSnapshot, Incident, Note, NoteListItem, Portal, RepoActivity, SecondBrainSummary, VaultGraph } from "./types";
+import type { AssistantBrief, NewShoeWatch, OwnResponse, NewsResponse, ShoesResponse, SportsResponse, NewsState, AutomationStatus, AutomationRun, ConfigItem, AppInfo, AppLogs, Deployments, HealthHistory, HistoryRange, LearningModule, PushPref, JournalRow, PhilosophyToday, AgentSummary, CIEvent, DashboardResponse, FinancialSnapshot, Incident, Note, NoteListItem, Portal, RepoActivity, SecondBrainSummary, VaultGraph } from "./types";
 import { readToken, readWriteToken } from "./token";
 
 export class FinancialsAuthError extends Error {}
@@ -294,4 +294,22 @@ export async function setPushPref(kind: string, enabled: boolean, writeToken = r
     body: JSON.stringify({ enabled }),
   });
   if (!response.ok) throw new Error(`Saving failed with HTTP ${response.status}.`);
+}
+
+export const fetchPhilosophyToday = (token: string) => getPersonal<PhilosophyToday>("philosophy/today", token);
+
+export const fetchJournal = (token: string) => getPersonal<JournalRow[]>("philosophy/journal", token);
+
+export async function saveJournal(
+  day: string,
+  fields: { intention?: string; reflection?: string },
+  writeToken = readWriteToken(),
+): Promise<JournalRow> {
+  const response = await fetch(`/api/v1/personal/philosophy/journal/${encodeURIComponent(day)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", "X-Dashboard-Write-Token": writeToken },
+    body: JSON.stringify(fields),
+  });
+  if (!response.ok) throw new Error(`Saving failed with HTTP ${response.status}.`);
+  return (await response.json()) as JournalRow;
 }

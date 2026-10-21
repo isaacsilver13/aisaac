@@ -664,6 +664,9 @@ button.tab-link[aria-pressed="true"] { border-bottom-color: var(--text); color: 
 .learning-list details { color: var(--text-muted); }
 .learning-match { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
 .learning-match select { background: transparent; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); max-width: 100%; padding: 6px 8px; }
+.philosophy-passage { font-size: 1.05rem; line-height: 1.6; margin: 12px 0; }
+blockquote.philosophy-passage { border-left: 3px solid var(--line); padding-left: 14px; }
+#philosophy-intention, #philosophy-reflection { background: transparent; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); font: inherit; padding: 8px; }
 /* News: editorial layout (lead story, then topic sections of cards). */
 .news-toolbar { display: flex; flex-direction: column; gap: 10px; margin: 20px 0 24px; }
 .news-search { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 13px; max-width: 320px; padding: 7px 10px; }
