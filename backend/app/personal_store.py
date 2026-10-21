@@ -132,6 +132,19 @@ CREATE TABLE IF NOT EXISTS digest_runs (
     freshness_at TEXT,
     error TEXT
 );
+
+CREATE TABLE IF NOT EXISTS push_prefs (
+    kind TEXT PRIMARY KEY,
+    enabled INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS philosophy_journal (
+    local_date TEXT PRIMARY KEY,
+    entry_id TEXT NOT NULL,
+    intention TEXT,
+    reflection TEXT,
+    updated_at TEXT NOT NULL
+);
 """
 
 STATES = ("new", "saved", "dismissed")
@@ -507,3 +520,56 @@ def finish_run(
             "WHERE local_date = ?",
             (status, _now() if status == "sent" else None, freshness_at, error, local_date),
         )
+
+
+# --- Daily push toggles ----------------------------------------------------------------
+
+
+def get_push_prefs() -> dict[str, bool]:
+    """Only kinds ever toggled have a row; a missing kind is off."""
+    with _connect() as conn:
+        return {r["kind"]: bool(r["enabled"]) for r in conn.execute("SELECT * FROM push_prefs")}
+
+
+def set_push_pref(kind: str, enabled: bool) -> None:
+    with _connect() as conn:
+        conn.execute(
+            "INSERT INTO push_prefs (kind, enabled) VALUES (?, ?) "
+            "ON CONFLICT(kind) DO UPDATE SET enabled = excluded.enabled",
+            (kind, int(enabled)),
+        )
+
+
+# --- Philosophy journal ------------------------------------------------------------------
+
+
+def get_journal(local_date: str) -> Optional[dict]:
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM philosophy_journal WHERE local_date = ?", (local_date,)
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def upsert_journal(
+    local_date: str, entry_id: str, intention: Optional[str], reflection: Optional[str]
+) -> dict:
+    """A None field keeps what is stored, so saving the reflection never clears the intention."""
+    with _connect() as conn:
+        conn.execute(
+            "INSERT INTO philosophy_journal (local_date, entry_id, intention, reflection, "
+            "updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(local_date) DO UPDATE SET "
+            "intention = COALESCE(excluded.intention, philosophy_journal.intention), "
+            "reflection = COALESCE(excluded.reflection, philosophy_journal.reflection), "
+            "updated_at = excluded.updated_at",
+            (local_date, entry_id, intention, reflection, _now()),
+        )
+    return get_journal(local_date)  # type: ignore[return-value]
+
+
+def list_journal(limit: int = 365) -> list[dict]:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM philosophy_journal ORDER BY local_date DESC LIMIT ?", (limit,)
+        ).fetchall()
+    return [dict(r) for r in rows]

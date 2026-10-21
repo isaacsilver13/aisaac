@@ -44,6 +44,16 @@ Use one daily job at [cron-job.org](https://cron-job.org) instead of an hourly G
   ntfy accepts it, so a failed push retries on the next tick. The ESPN feed refreshes at most hourly.
 - First run `?dry_run=true` (lists games due now, sends nothing).
 
+### Daily pushes job
+
+- URL: `<AIsaac URL>/internal/daily-pushes/send` (method POST), same `X-Internal-Secret` header. The host
+  is the AIsaac Fly app (`aisaac-dashboard.fly.dev`, becoming `aisaac.fly.dev` after the rename), so
+  update this job with the other consumers when the app moves.
+- Schedule: every hour, on the hour. Needs `NTFY_TOPIC`. Each kind in `daily_pushes.PUSHES` (Settings →
+  Daily pushes, all off by default) sends once per Chicago day at or after its hour; a failed or not-ready
+  push retries on the next hourly call. The response lists each kind's status
+  (`sent`, `failed`, `not_due`, `not_ready`, `already_sent`, `disabled`).
+
 ## Provider spike (2026-10-07)
 
 Searched, not yet verified against authoritative terms. No key was requested and no account created.

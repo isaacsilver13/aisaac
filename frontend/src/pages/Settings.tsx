@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 
 import { ConfigPanel } from "../components/ConfigPanel";
+import { DailyPushes } from "../components/DailyPushes";
 import { Card } from "../components/primitives/Card";
 import { PageHeader } from "../components/primitives/PageHeader";
 import { useTheme } from "../theme/useTheme";
@@ -87,6 +88,8 @@ export default function Settings() {
         <>
           <div className="ui-stat-label" style={{ margin: "16px 0 8px" }}>Backend configuration</div>
           <ConfigPanel token={readToken()} />
+          <div className="ui-stat-label" style={{ margin: "16px 0 8px" }}>Daily pushes</div>
+          <DailyPushes token={readToken()} canWrite={writeSaved} />
         </>
       )}
 

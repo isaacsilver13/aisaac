@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field, ValidationError, model_validator
 from . import (
     automations,
     ci_events,
+    daily_pushes,
     fly_client,
     health_history,
     incidents,
@@ -29,6 +30,7 @@ from . import (
     personal_ebay,
     personal_news,
     personal_own,
+    personal_philosophy,
     personal_shoes,
     personal_sports,
     personal_stockx,
@@ -658,6 +660,74 @@ def game_reminders_send(dry_run: bool = Query(default=False)) -> dict:
     )
 
 
+class PushPrefIn(BaseModel):
+    enabled: bool
+
+
+@app.get("/api/v1/personal/pushes", dependencies=[Depends(_require_read_token)])
+def personal_pushes() -> list[dict]:
+    prefs = personal_store.get_push_prefs()
+    return [
+        {"kind": kind, "hour": hour, "enabled": prefs.get(kind, False)}
+        for kind, (hour, _) in daily_pushes.PUSHES.items()
+    ]
+
+
+@app.put(
+    "/api/v1/personal/pushes/{kind}",
+    status_code=204,
+    dependencies=[Depends(_require_write_token)],
+)
+def personal_push_toggle(kind: str, payload: PushPrefIn) -> None:
+    if kind not in daily_pushes.PUSHES:
+        raise HTTPException(404, "Unknown push.")
+    personal_store.set_push_pref(kind, payload.enabled)
+
+
+class JournalIn(BaseModel):
+    intention: Optional[str] = Field(default=None, max_length=1000)
+    reflection: Optional[str] = Field(default=None, max_length=5000)
+
+
+@app.get("/api/v1/personal/philosophy/today", dependencies=[Depends(_require_read_token)])
+def philosophy_today(day: Optional[date] = None) -> dict:
+    day = day or learning.today()
+    return {
+        "date": day.isoformat(),
+        "entry": personal_philosophy.entry_for(day),
+        "journal": personal_store.get_journal(day.isoformat()),
+    }
+
+
+@app.put(
+    "/api/v1/personal/philosophy/journal/{local_date}",
+    dependencies=[Depends(_require_write_token)],
+)
+def philosophy_journal_save(local_date: date, payload: JournalIn) -> dict:
+    entry = personal_philosophy.entry_for(local_date)
+    return personal_store.upsert_journal(
+        local_date.isoformat(), entry["id"], payload.intention, payload.reflection
+    )
+
+
+@app.get("/api/v1/personal/philosophy/journal", dependencies=[Depends(_require_read_token)])
+def philosophy_journal() -> list[dict]:
+    by_id = {e["id"]: e for e in personal_philosophy.ENTRIES}
+    out = []
+    for row in personal_store.list_journal():
+        entry = by_id.get(row["entry_id"], {})
+        out.append({**row, "author": entry.get("author"), "theme": entry.get("theme")})
+    return out
+
+
+@app.post("/internal/daily-pushes/send", dependencies=[Depends(_require_internal_secret)])
+def daily_pushes_send() -> dict[str, str]:
+    return daily_pushes.run(
+        datetime.now(timezone.utc),
+        send=lambda message: notify.send_coms_notification(settings, message),
+    )
+
+
 # (setting, label, what it enables). Values are never returned, only whether each is set.
 _CONFIG_CHECKS = (
     ("dashboard_read_token", "Dashboard read token", "Knowledge, financials, deployments, logs"),
@@ -667,7 +737,7 @@ _CONFIG_CHECKS = (
     ("github_token", "GitHub token", "Repo, PR and CI data (rate limits without it)"),
     ("resend_api_key", "Resend API key", "Email alerts"),
     ("alert_to_email", "Alert recipient", "Email alerts"),
-    ("ntfy_topic", "ntfy topic", "CI, game-reminder and morning-brief pushes"),
+    ("ntfy_topic", "ntfy topic", "CI, game-reminder, morning-brief and daily pushes"),
     ("token_encryption_key", "Token encryption key", "Connecting eBay/StockX accounts"),
     ("ebay_client_id", "eBay client ID", "Shoe price search"),
     ("ebay_client_secret", "eBay client secret", "Shoe price search"),

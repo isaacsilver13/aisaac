@@ -447,6 +447,42 @@ export interface LearningExercise {
   options?: string[];
 }
 
+export interface PushPref {
+  kind: string;
+  /** Send hour, America/Chicago. */
+  hour: number;
+  enabled: boolean;
+}
+
+export interface PhilosophyEntry {
+  id: string;
+  school: "stoic" | "existentialist";
+  author: string;
+  source: string;
+  /** True for Sartre/Camus/de Beauvoir: our own summary, not a quotation. */
+  paraphrase: boolean;
+  passage: string;
+  theme: string;
+  morning_prompt: string;
+  evening_question: string;
+}
+
+export interface JournalRow {
+  local_date: string;
+  entry_id: string;
+  intention: string | null;
+  reflection: string | null;
+  updated_at: string;
+  author?: string | null;
+  theme?: string | null;
+}
+
+export interface PhilosophyToday {
+  date: string;
+  entry: PhilosophyEntry;
+  journal: JournalRow | null;
+}
+
 export interface LearningModule {
   date: string;
   path: string;

@@ -10,6 +10,7 @@ import CommandCenter from "./pages/CommandCenter";
 import Coms from "./pages/Coms";
 import Learning from "./pages/Learning";
 import News from "./pages/News";
+import Philosophy from "./pages/Philosophy";
 import Shoes from "./pages/Shoes";
 import Sports from "./pages/Sports";
 import SecondBrain from "./pages/SecondBrain";
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="/automations" element={<Automations />} />
         <Route path="/knowledge/*" element={<SecondBrain />} />
         <Route path="/learning" element={<Learning />} />
+        <Route path="/philosophy" element={<Philosophy />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/second-brain" element={<RedirectKeepSearch to="/knowledge" />} />
         <Route path="/analytics" element={<RedirectKeepSearch to="/github" />} />
