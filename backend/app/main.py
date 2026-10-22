@@ -29,6 +29,7 @@ from . import (
     personal_connect,
     personal_digest,
     personal_ebay,
+    personal_nba,
     personal_news,
     personal_own,
     personal_philosophy,
@@ -889,3 +890,14 @@ if frontend_dist.is_dir():
         from .frontend_files import frontend_response
 
         return frontend_response(frontend_dist, path)
+
+
+@app.post("/internal/nba-report", dependencies=[Depends(_require_internal_secret)])
+def nba_report_push(report: personal_nba.NbaReport) -> dict:
+    personal_store.upsert_nba_report(report.slate_date.isoformat(), report.model_dump(mode="json"))
+    return {"ok": True, "slate_date": report.slate_date.isoformat()}
+
+
+@app.get("/api/v1/personal/nba-report", dependencies=[Depends(_require_read_token)])
+def nba_report(date: Optional[date] = None) -> Optional[dict]:
+    return personal_store.get_nba_report(date.isoformat() if date else None)
