@@ -153,6 +153,16 @@ CREATE TABLE IF NOT EXISTS nba_reports (
     received_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS books (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    author TEXT NOT NULL,
+    apple_url TEXT,
+    status TEXT NOT NULL DEFAULT 'queued',
+    map_json TEXT NOT NULL,
+    added_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS assistant_snapshot (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     payload TEXT NOT NULL,
@@ -640,3 +650,55 @@ def load_brief() -> Optional[dict]:
     with _connect() as conn:
         row = conn.execute("SELECT payload FROM assistant_snapshot WHERE id = 1").fetchone()
     return json.loads(row["payload"]) if row else None
+
+
+# --- Books -------------------------------------------------------------------------------
+
+BOOK_STATUSES = ("queued", "listening", "done")
+
+
+def _book(row: sqlite3.Row) -> dict:
+    out = dict(row)
+    out["map"] = json.loads(out.pop("map_json"))
+    return out
+
+
+def add_book(title: str, author: str, apple_url: Optional[str], concept_map: dict) -> dict:
+    with _connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO books (title, author, apple_url, map_json, added_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (title, author, apple_url, json.dumps(concept_map), _now()),
+        )
+        book_id = cur.lastrowid
+    return get_book(book_id)  # type: ignore[arg-type,return-value]
+
+
+def list_books() -> list[dict]:
+    """Library rows without the map (fetch one book for that)."""
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT id, title, author, apple_url, status, added_at FROM books ORDER BY id DESC"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_book(book_id: int) -> Optional[dict]:
+    with _connect() as conn:
+        row = conn.execute("SELECT * FROM books WHERE id = ?", (book_id,)).fetchone()
+    return _book(row) if row else None
+
+
+def set_book_status(book_id: int, status: str) -> Optional[dict]:
+    with _connect() as conn:
+        conn.execute("UPDATE books SET status = ? WHERE id = ?", (status, book_id))
+    return get_book(book_id)
+
+
+def listening_book() -> Optional[dict]:
+    """The most recently added book being listened to."""
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM books WHERE status = 'listening' ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+    return _book(row) if row else None

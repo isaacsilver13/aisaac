@@ -39,6 +39,7 @@ Backend settings come from environment variables (`backend/app/config.py`). Secr
 | `NTFY_TOPIC` | CI pushes, pre-game reminders and the morning brief push. |
 | `GOOGLE_CALENDAR_ICS_URL` | Assistant: today's events (Google Calendar → Integrate calendar → secret iCal address). |
 | `GYM_TRACKER_URL`, `GYM_TRACKER_TOKEN` | Assistant: gym progress from gym_tracker's `/api/v1/assistant/summary`. |
+| `GROQ_API_KEY`, `GROQ_MODEL` | Books: audiobook recommendations and concept maps (Groq free tier; write-token endpoints only). Model defaults to `llama-3.3-70b-versatile`. |
 | `HEALTH_POLL_INTERVAL_SECONDS` | Optional in-process poller (default 0 = off). |
 
 To report Codex included usage, schedule `python scripts/push_codex_usage.py` every two hours on

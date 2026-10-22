@@ -26,8 +26,17 @@ type SimLink = { source: string | SimNode; target: string | SimNode };
  * Interactive force graph. React owns the elements (classes, visibility); d3 owns their
  * positions (updated imperatively on every tick) and the drag/zoom behaviour.
  * With `current` set it is the compact local graph: all labels, no controls, no zoom (so the page still scrolls).
+ * `href` maps a node to its link (default: the note's article page).
  */
-export function Graph({ graph, current }: { graph: VaultGraph; current?: string }) {
+export function Graph({
+  graph,
+  current,
+  href = noteHref,
+}: {
+  graph: VaultGraph;
+  current?: string;
+  href?: (path: string) => string;
+}) {
   const svgRef = useRef<SVGSVGElement>(null);
   const gRef = useRef<SVGGElement>(null);
   const [hovered, setHovered] = useState<string | null>(null);
@@ -153,7 +162,7 @@ export function Graph({ graph, current }: { graph: VaultGraph; current?: string 
           {graph.nodes.map((n) => (
             <Link
               key={n.path}
-              to={noteHref(n.path)}
+              to={href(n.path)}
               aria-label={n.title}
               onMouseEnter={() => setHovered(n.path)}
               onMouseLeave={() => setHovered(null)}

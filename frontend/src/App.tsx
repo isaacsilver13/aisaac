@@ -4,6 +4,7 @@ import { AppShell } from "./components/layout/AppShell";
 import Applications from "./pages/Applications";
 import Assistant from "./pages/Assistant";
 import Automations from "./pages/Automations";
+import Books from "./pages/Books";
 import Agents from "./pages/Agents";
 import Analytics from "./pages/Analytics";
 import CommandCenter from "./pages/CommandCenter";
@@ -41,6 +42,7 @@ export default function App() {
         <Route path="/knowledge/*" element={<SecondBrain />} />
         <Route path="/learning" element={<Learning />} />
         <Route path="/philosophy" element={<Philosophy />} />
+        <Route path="/books" element={<Books />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/second-brain" element={<RedirectKeepSearch to="/knowledge" />} />
         <Route path="/analytics" element={<RedirectKeepSearch to="/github" />} />

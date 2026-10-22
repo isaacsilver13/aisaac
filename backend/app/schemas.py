@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 
 HealthState = Literal["up", "slow", "degraded", "down", "unavailable", "stale"]
 CheckKind = Literal["json", "page"]
@@ -368,3 +368,33 @@ class LearningProgressIn(BaseModel):
 
     day: date
     path: str
+
+
+class MapNode(BaseModel):
+    id: str = Field(min_length=1, max_length=60)
+    label: str = Field(min_length=1, max_length=120)
+    kind: Literal["theme", "concept", "example"]
+    summary: str = Field(min_length=1, max_length=800)
+
+
+class MapEdge(BaseModel):
+    source: str
+    target: str
+    label: str = Field(default="", max_length=120)
+
+
+class BookMap(BaseModel):
+    """An AI-generated concept map of a book, as returned by the LLM (validated before storing)."""
+
+    nodes: list[MapNode] = Field(min_length=1, max_length=40)
+    edges: list[MapEdge] = Field(default_factory=list, max_length=120)
+
+    @model_validator(mode="after")
+    def _consistent(self) -> "BookMap":
+        ids = [n.id for n in self.nodes]
+        if len(set(ids)) != len(ids):
+            raise ValueError("duplicate node ids")
+        known = set(ids)
+        if any(e.source not in known or e.target not in known for e in self.edges):
+            raise ValueError("edge references an unknown node")
+        return self
