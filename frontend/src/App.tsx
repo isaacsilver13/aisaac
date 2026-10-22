@@ -9,6 +9,7 @@ import Analytics from "./pages/Analytics";
 import CommandCenter from "./pages/CommandCenter";
 import Coms from "./pages/Coms";
 import Learning from "./pages/Learning";
+import NbaReport from "./pages/NbaReport";
 import News from "./pages/News";
 import Philosophy from "./pages/Philosophy";
 import Shoes from "./pages/Shoes";
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/sports" element={<Sports />} />
         <Route path="/news" element={<News />} />
+        <Route path="/nba" element={<NbaReport />} />
         <Route path="/shoes" element={<Shoes />} />
         <Route path="/automations" element={<Automations />} />
         <Route path="/knowledge/*" element={<SecondBrain />} />
