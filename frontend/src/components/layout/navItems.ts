@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from "react";
-import { AppWindow, Book, Brain, ChatBubble, Dashboard, Github, Heart, Leaf, Settings, Shop, TaskList, Timer, Trophy } from "iconoir-react";
+import { AppWindow, Basketball, Book, Brain, ChatBubble, Dashboard, Github, Heart, Leaf, Settings, Shop, TaskList, Timer, Trophy } from "iconoir-react";
 
 export interface NavItem {
   to: string;
@@ -32,6 +32,7 @@ export const NAV_ITEMS: (NavItem | NavGroup)[] = [
     children: [
       { to: "/sports", label: "Sports", icon: Trophy },
       { to: "/news", label: "News", icon: Book },
+      { to: "/nba", label: "NBA report", icon: Basketball },
       { to: "/shoes", label: "Shoes", icon: Shop },
     ],
   },

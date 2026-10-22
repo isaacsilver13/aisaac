@@ -147,6 +147,12 @@ CREATE TABLE IF NOT EXISTS philosophy_journal (
     updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS nba_reports (
+    local_date TEXT PRIMARY KEY,
+    payload_json TEXT NOT NULL,
+    received_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS assistant_snapshot (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     payload TEXT NOT NULL,
@@ -580,6 +586,40 @@ def list_journal(limit: int = 365) -> list[dict]:
             "SELECT * FROM philosophy_journal ORDER BY local_date DESC LIMIT ?", (limit,)
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+# --- NBA daily report (pushed by bet_watch) ----------------------------------------------
+
+NBA_REPORT_RETENTION_DAYS = 30
+
+
+def upsert_nba_report(local_date: str, payload: dict) -> None:
+    """Re-sends of the same slate replace it; reports older than 30 days are dropped."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=NBA_REPORT_RETENTION_DAYS)).date()
+    with _connect() as conn:
+        conn.execute(
+            "INSERT INTO nba_reports (local_date, payload_json, received_at) VALUES (?, ?, ?) "
+            "ON CONFLICT(local_date) DO UPDATE SET payload_json = excluded.payload_json, "
+            "received_at = excluded.received_at",
+            (local_date, json.dumps(payload), _now()),
+        )
+        conn.execute("DELETE FROM nba_reports WHERE local_date < ?", (cutoff.isoformat(),))
+
+
+def get_nba_report(local_date: Optional[str] = None) -> Optional[dict]:
+    """The report for a date, or the latest one when no date is given."""
+    with _connect() as conn:
+        if local_date:
+            row = conn.execute(
+                "SELECT * FROM nba_reports WHERE local_date = ?", (local_date,)
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT * FROM nba_reports ORDER BY local_date DESC LIMIT 1"
+            ).fetchone()
+    if not row:
+        return None
+    return {**json.loads(row["payload_json"]), "received_at": row["received_at"]}
 
 
 # --- Assistant brief snapshot ------------------------------------------------------------

@@ -561,3 +561,61 @@ export interface AssistantBrief {
   };
   gym: { state: BriefState; app_url: string | null; data: GymSummary | null };
 }
+
+/** bet_watch's daily NBA report (contract: bet_watch PR #11). Probabilities, ev, kelly_frac and avg_clv are fractions. */
+export interface NbaGame {
+  game_id: number | null;
+  home: string;
+  away: string;
+  tip: string | null;
+  pred_margin: number;
+  p_home_win: number;
+  market_spread_home: number | null;
+  market_home_win_prob: number | null;
+  books: number;
+}
+
+export interface NbaPick {
+  tier: "targeted" | "watchlist";
+  game_id: number | null;
+  home: string;
+  away: string;
+  tip: string | null;
+  market: string;
+  side: string;
+  team: string;
+  line: number | null;
+  book: string;
+  price_american: number;
+  model_prob: number;
+  market_prob: number;
+  ev: number;
+  kelly_frac: number;
+}
+
+export interface NbaTrackRecord {
+  tier: "targeted" | "watchlist";
+  picks: number;
+  graded: number;
+  won: number;
+  lost: number;
+  push: number;
+  flat_roi: number | null;
+  avg_clv: number | null;
+  clv_samples: number;
+  /** 0–100, unlike the other fractions. */
+  beat_close_pct: number | null;
+}
+
+export interface NbaReport {
+  kind: "nba_daily_report";
+  slate_date: string;
+  generated_at: string;
+  model_version: string;
+  data_through: string | null;
+  odds_as_of: string | null;
+  games: NbaGame[];
+  picks: NbaPick[];
+  track_record: NbaTrackRecord[];
+  received_at: string;
+}

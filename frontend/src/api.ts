@@ -1,4 +1,4 @@
-import type { AssistantBrief, NewShoeWatch, OwnResponse, NewsResponse, ShoesResponse, SportsResponse, NewsState, AutomationStatus, AutomationRun, ConfigItem, AppInfo, AppLogs, Deployments, HealthHistory, HistoryRange, LearningModule, PushPref, JournalRow, PhilosophyToday, AgentSummary, CIEvent, DashboardResponse, FinancialSnapshot, Incident, Note, NoteListItem, Portal, RepoActivity, SecondBrainSummary, VaultGraph } from "./types";
+import type { AssistantBrief, NewShoeWatch, OwnResponse, NewsResponse, ShoesResponse, SportsResponse, NewsState, AutomationStatus, AutomationRun, ConfigItem, AppInfo, AppLogs, Deployments, HealthHistory, HistoryRange, LearningModule, NbaReport, PushPref, JournalRow, PhilosophyToday, AgentSummary, CIEvent, DashboardResponse, FinancialSnapshot, Incident, Note, NoteListItem, Portal, RepoActivity, SecondBrainSummary, VaultGraph } from "./types";
 import { readToken, readWriteToken } from "./token";
 
 export class FinancialsAuthError extends Error {}
@@ -296,6 +296,9 @@ export async function setPushPref(kind: string, enabled: boolean, writeToken = r
 export const fetchPhilosophyToday = (token: string) => getPersonal<PhilosophyToday>("philosophy/today", token);
 
 export const fetchJournal = (token: string) => getPersonal<JournalRow[]>("philosophy/journal", token);
+
+/** The latest NBA report (null until bet_watch has pushed one). */
+export const fetchNbaReport = (token: string) => getPersonal<NbaReport | null>("nba-report", token);
 
 export async function saveJournal(
   day: string,
