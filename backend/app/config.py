@@ -81,6 +81,10 @@ class Settings(BaseSettings):
     # Second-brain vault notes pushed by scripts/second_brain_push.py (read-token gated).
     second_brain_db_path: str = "./aisaac_second_brain.db"
 
+    # Books agent (Groq free tier); used only by the write-token book endpoints. Unset = 503.
+    groq_api_key: str = ""
+    groq_model: str = "llama-3.3-70b-versatile"
+
 
 @lru_cache
 def get_settings() -> Settings:

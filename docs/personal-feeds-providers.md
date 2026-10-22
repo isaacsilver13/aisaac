@@ -11,6 +11,7 @@ Plan: [personal feeds and daily digest](plans/2026-10-07-personal-feeds-and-dail
 | Sports | Live (ESPN) | `personal_sports.py` + `personal_espn.py`, `/api/v1/personal/sports`, Sports page. ESPN public scoreboard JSON, approved by Isaac 2026-10-19 as an exception (see below). Priority teams: Bears, Bulls, White Sox, Northwestern and Temple (football + basketball). |
 | Game reminders | Built, **not scheduled** | `POST /internal/game-reminders/send`: one ntfy push per priority-team game, within 60 min of start |
 | Shoes | **Built, no live provider** | `personal_shoes.py`, `/api/v1/personal/shoes`, Shoes page. User-managed watches and release links (write token), price-change detection with bounded history, fixture-tested. `PROVIDER` is `None` until eBay Browse production access is approved. No scraping. |
+| Books | Built, needs `GROQ_API_KEY` | `personal_books.py`, `/api/v1/personal/books*`, Books page. Groq free tier (LLM, write-token endpoints only) suggests books; each is kept only if the **iTunes Search API** (`https://itunes.apple.com/search?media=audiobook`, keyless, approved in the books plan 2026-10-21) finds it as an audiobook. Audible and OverDrive/Libby get search links only, never claimed as verified. Concept maps are AI-generated outlines. Errors are short codes (`groq_not_configured`, `groq_rate_limited`, `groq_failed`, `bad_map`). The `books` daily push (9 CT, off by default) sends one map node a day from the `listening` book. |
 
 Feed liveness was checked once on 2026-10-07 (all 10 returned HTTP 200 and parsed). Each publisher's
 reuse terms still need a read before relying on this beyond personal use; the app stores only titles and URLs.
@@ -76,6 +77,7 @@ Searched, not yet verified against authoritative terms. No key was requested and
 | TheSportsDB | Free key; sources conflict on rate limit and non-commercial terms; live scores need a paid tier | **Candidate for schedules**, terms to be read first |
 | balldontlie | Free tier reported at 5 req/min, games/teams only; sources conflict | **Candidate for NBA schedules**, terms to be read first |
 | eBay Browse API | Requires production approval | **Blocked** pending approval |
+| iTunes Search API | Keyless public JSON search (`media=audiobook`); Apple documents roughly 20 calls/min | **Allowlisted 2026-10-21** for the Books audiobook check only (at most 10 calls per recommendation request) |
 
 To enable a source: implement a callable that returns raw event dicts (see `personal_sports.normalize` for the shape), set `PROVIDER`, add its key via the existing secret workflow, and record the verified terms here. Games with no `url` fall back to the league's official scoreboard link; rankings are stored only when the provider supplies them with a poll date, and the UI treats a poll older than 8 days as unavailable.
 

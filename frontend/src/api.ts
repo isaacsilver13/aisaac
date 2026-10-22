@@ -1,4 +1,4 @@
-import type { AssistantBrief, NewShoeWatch, OwnResponse, NewsResponse, ShoesResponse, SportsResponse, NewsState, AutomationStatus, AutomationRun, ConfigItem, AppInfo, AppLogs, Deployments, HealthHistory, HistoryRange, LearningModule, NbaReport, PushPref, JournalRow, PhilosophyToday, AgentSummary, CIEvent, DashboardResponse, FinancialSnapshot, Incident, Note, NoteListItem, Portal, RepoActivity, SecondBrainSummary, VaultGraph } from "./types";
+import type { AssistantBrief, Book, BookRecommendation, BookRow, BookStatus, NewShoeWatch, OwnResponse, NewsResponse, ShoesResponse, SportsResponse, NewsState, AutomationStatus, AutomationRun, ConfigItem, AppInfo, AppLogs, Deployments, HealthHistory, HistoryRange, LearningModule, NbaReport, PushPref, JournalRow, PhilosophyToday, AgentSummary, CIEvent, DashboardResponse, FinancialSnapshot, Incident, Note, NoteListItem, Portal, RepoActivity, SecondBrainSummary, VaultGraph } from "./types";
 import { readToken, readWriteToken } from "./token";
 
 export class FinancialsAuthError extends Error {}
@@ -313,3 +313,36 @@ export async function saveJournal(
   if (!response.ok) throw new Error(`Saving failed with HTTP ${response.status}.`);
   return (await response.json()) as JournalRow;
 }
+
+export const fetchBooks = (token: string) => getPersonal<BookRow[]>("books", token);
+
+export const fetchBook = (id: number, token: string) => getPersonal<Book>(`books/${id}`, token);
+
+const BOOK_ERRORS: Record<string, string> = {
+  groq_not_configured: "Books needs GROQ_API_KEY on the server.",
+  groq_rate_limited: "Groq's free-tier limit was hit; try again in a minute.",
+  bad_map: "The model returned an unusable map twice; try again.",
+};
+
+/** Write-token book calls; they spend the Groq free-tier quota. Errors carry the server's short code. */
+async function writeBooks<T>(path: string, method: string, body: unknown, writeToken: string): Promise<T> {
+  const response = await fetch(`/api/v1/personal/books${path}`, {
+    method,
+    headers: { "Content-Type": "application/json", "X-Dashboard-Write-Token": writeToken },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const code = ((await response.json().catch(() => ({}))) as { detail?: unknown }).detail;
+    throw new Error((typeof code === "string" && BOOK_ERRORS[code]) || `Request failed with HTTP ${response.status}.`);
+  }
+  return (await response.json()) as T;
+}
+
+export const recommendBooks = (interest: string, writeToken = readWriteToken()) =>
+  writeBooks<BookRecommendation[]>("/recommend", "POST", { interest }, writeToken);
+
+export const addBook = (book: { title: string; author: string; apple_url: string | null }, writeToken = readWriteToken()) =>
+  writeBooks<Book>("", "POST", book, writeToken);
+
+export const setBookStatus = (id: number, status: BookStatus, writeToken = readWriteToken()) =>
+  writeBooks<Book>(`/${id}`, "PATCH", { status }, writeToken);

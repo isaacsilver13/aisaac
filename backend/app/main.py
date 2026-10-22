@@ -26,6 +26,7 @@ from . import (
     metrics_store,
     notify,
     personal_assistant,
+    personal_books,
     personal_connect,
     personal_digest,
     personal_ebay,
@@ -776,6 +777,63 @@ def nba_report(day: Optional[date] = Query(default=None, alias="date")) -> Optio
     return personal_store.get_nba_report(day.isoformat() if day else None)
 
 
+class BookRecommendIn(BaseModel):
+    interest: str = Field(min_length=1, max_length=300)
+
+
+class BookIn(BaseModel):
+    title: str = Field(min_length=1, max_length=300)
+    author: str = Field(min_length=1, max_length=200)
+    apple_url: Optional[str] = Field(default=None, max_length=500)
+
+
+class BookStatusIn(BaseModel):
+    status: Literal["queued", "listening", "done"]
+
+
+def _books_call(fn, *args):
+    """Runs a Groq-backed books call; failures become a short error code, never a body."""
+    try:
+        return fn(*args, settings.groq_api_key, settings.groq_model)
+    except personal_books.BooksError as exc:
+        raise HTTPException(exc.status, exc.code) from None
+
+
+# Write token on the Groq-backed endpoints: they spend the free-tier quota.
+@app.post("/api/v1/personal/books/recommend", dependencies=[Depends(_require_write_token)])
+def books_recommend(payload: BookRecommendIn) -> list[dict]:
+    return _books_call(personal_books.recommend, payload.interest)
+
+
+@app.post(
+    "/api/v1/personal/books", status_code=201, dependencies=[Depends(_require_write_token)]
+)
+def books_add(payload: BookIn) -> dict:
+    concept_map = _books_call(personal_books.build_map, payload.title, payload.author)
+    return personal_store.add_book(payload.title, payload.author, payload.apple_url, concept_map)
+
+
+@app.get("/api/v1/personal/books", dependencies=[Depends(_require_read_token)])
+def books_list() -> list[dict]:
+    return personal_store.list_books()
+
+
+@app.get("/api/v1/personal/books/{book_id}", dependencies=[Depends(_require_read_token)])
+def books_get(book_id: int) -> dict:
+    book = personal_store.get_book(book_id)
+    if book is None:
+        raise HTTPException(404, "Unknown book.")
+    return book
+
+
+@app.patch("/api/v1/personal/books/{book_id}", dependencies=[Depends(_require_write_token)])
+def books_set_status(book_id: int, payload: BookStatusIn) -> dict:
+    book = personal_store.set_book_status(book_id, payload.status)
+    if book is None:
+        raise HTTPException(404, "Unknown book.")
+    return book
+
+
 @app.get("/api/v1/personal/philosophy/journal", dependencies=[Depends(_require_read_token)])
 def philosophy_journal() -> list[dict]:
     by_id = {e["id"]: e for e in personal_philosophy.ENTRIES}
@@ -811,6 +869,7 @@ _CONFIG_CHECKS = (
     ("google_calendar_ics_url", "Google Calendar iCal URL", "Assistant: today's events"),
     ("gym_tracker_url", "Gym Tracker URL", "Assistant: gym progress"),
     ("gym_tracker_token", "Gym Tracker token", "Assistant: gym progress"),
+    ("groq_api_key", "Groq API key", "Books: recommendations and concept maps"),
 )
 
 

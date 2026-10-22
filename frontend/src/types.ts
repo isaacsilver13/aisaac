@@ -619,3 +619,39 @@ export interface NbaReport {
   track_record: NbaTrackRecord[];
   received_at: string;
 }
+
+export type BookStatus = "queued" | "listening" | "done";
+
+export interface BookRecommendation {
+  title: string;
+  author: string;
+  why: string;
+  apple_url: string | null;
+  audible_search_url: string;
+  libby_search_url: string;
+}
+
+export interface BookMapNode {
+  id: string;
+  label: string;
+  kind: "theme" | "concept" | "example";
+  summary: string;
+}
+
+export interface BookMap {
+  nodes: BookMapNode[];
+  edges: { source: string; target: string; label: string }[];
+}
+
+export interface BookRow {
+  id: number;
+  title: string;
+  author: string;
+  apple_url: string | null;
+  status: BookStatus;
+  added_at: string;
+}
+
+export interface Book extends BookRow {
+  map: BookMap;
+}
